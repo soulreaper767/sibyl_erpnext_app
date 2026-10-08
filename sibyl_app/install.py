@@ -24,6 +24,30 @@ def setup():
 	seed_naming_settings()
 	if backfill_customer_ids():
 		frappe.db.commit()
+	rename_existing_documents_once()
+
+
+def rename_existing_documents_once():
+	"""Move documents created before the app onto customer-wise names - once per site.
+
+	Runs from after_install and after_migrate, so sites that installed an earlier
+	version pick it up on their next `bench migrate`. On failure the flag stays
+	unset (and the error is logged) so the next migrate retries; install itself
+	is never blocked. Later renumbering is available from Sibyl Naming Settings.
+	"""
+	if frappe.db.get_single_value(SETTINGS, "existing_docs_renamed"):
+		return
+	from sibyl_app.rename_existing import run
+
+	try:
+		run()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Sibyl App: renaming existing documents failed")
+		print("Sibyl App: renaming existing documents failed - see Error Log; will retry on next migrate")
+		return
+	frappe.db.set_single_value(SETTINGS, "existing_docs_renamed", 1)
+	frappe.db.commit()
 
 
 def create_customer_id_field():

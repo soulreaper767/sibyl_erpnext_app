@@ -18,7 +18,8 @@
   "auto_assign_customer_id",
   "rules_section",
   "rules",
-  "rules_seeded"
+  "rules_seeded",
+  "existing_docs_renamed"
  ],
  "fields": [
   {
@@ -112,12 +113,19 @@
    "fieldtype": "Check",
    "hidden": 1,
    "label": "Rules Seeded"
+  },
+  {
+   "default": "0",
+   "fieldname": "existing_docs_renamed",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Existing Documents Renamed"
   }
  ],
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-08 00:00:00.000000",
+ "modified": "2026-10-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Sibyl App",
  "name": "Sibyl Naming Settings",
