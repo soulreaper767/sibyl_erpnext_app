@@ -1,0 +1,146 @@
+{
+ "actions": [],
+ "creation": "2026-10-08 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_section",
+  "enabled",
+  "name_pattern",
+  "column_break_naming",
+  "preview",
+  "customer_id_section",
+  "customer_id_mode",
+  "customer_id_length",
+  "customer_id_prefix",
+  "customer_id_digits",
+  "column_break_cid",
+  "auto_assign_customer_id",
+  "rules_section",
+  "rules",
+  "rules_seeded"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_section",
+   "fieldtype": "Section Break",
+   "label": "Customer-wise Naming"
+  },
+  {
+   "default": "1",
+   "description": "When off, all documents use their standard naming series.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enable Customer-wise Naming"
+  },
+  {
+   "default": "{prefix}-{customer_id}-.####",
+   "description": "Must contain {prefix}, {customer_id} and a run of #. Standard series tokens work too, e.g. {prefix}-{customer_id}-.YY.-.#### gives SO-ACME-26-0001 (counter then restarts every year).",
+   "fieldname": "name_pattern",
+   "fieldtype": "Data",
+   "label": "Name Pattern",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_naming",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "preview",
+   "fieldtype": "HTML",
+   "label": "Preview"
+  },
+  {
+   "fieldname": "customer_id_section",
+   "fieldtype": "Section Break",
+   "label": "Customer ID"
+  },
+  {
+   "default": "From Customer Name",
+   "description": "From Customer Name: \"Acme Traders Pvt Ltd\" becomes ACME (ACME2, ACME3 ... on clashes). Sequential: C0001, C0002 ...",
+   "fieldname": "customer_id_mode",
+   "fieldtype": "Select",
+   "label": "Customer ID Mode",
+   "options": "From Customer Name\nSequential"
+  },
+  {
+   "default": "4",
+   "depends_on": "eval:doc.customer_id_mode=='From Customer Name'",
+   "fieldname": "customer_id_length",
+   "fieldtype": "Int",
+   "label": "ID Length (letters from name)"
+  },
+  {
+   "default": "C",
+   "depends_on": "eval:doc.customer_id_mode=='Sequential'",
+   "fieldname": "customer_id_prefix",
+   "fieldtype": "Data",
+   "label": "Sequential ID Prefix"
+  },
+  {
+   "default": "4",
+   "depends_on": "eval:doc.customer_id_mode=='Sequential'",
+   "fieldname": "customer_id_digits",
+   "fieldtype": "Int",
+   "label": "Sequential ID Digits"
+  },
+  {
+   "fieldname": "column_break_cid",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Assign an ID automatically when a customer is saved without one (and for older customers the first time a document is raised). When off, a missing ID blocks the document.",
+   "fieldname": "auto_assign_customer_id",
+   "fieldtype": "Check",
+   "label": "Auto-assign Customer ID"
+  },
+  {
+   "fieldname": "rules_section",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "rules",
+   "fieldtype": "Table",
+   "label": "Naming Rules",
+   "options": "Sibyl Naming Rule"
+  },
+  {
+   "default": "0",
+   "fieldname": "rules_seeded",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Rules Seeded"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-08 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sibyl App",
+ "name": "Sibyl Naming Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Sales Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

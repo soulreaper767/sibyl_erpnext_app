@@ -5,10 +5,26 @@ app_description = "Customer-based naming series and sales customizations by Siby
 app_email = "jwabdms@gmail.com"
 app_license = "mit"
 
+required_apps = ["erpnext"]
+
+after_install = "sibyl_app.install.after_install"
+after_migrate = "sibyl_app.install.after_migrate"
+
+doc_events = {
+	"Customer": {
+		"validate": "sibyl_app.naming.customer_validate",
+	},
+	# Customer-wise naming - wired on "*" so any doctype added to
+	# Sibyl Naming Settings works without a code change; returns
+	# immediately for doctypes without a rule (see naming.py).
+	"*": {
+		"autoname": "sibyl_app.naming.autoname",
+		"on_trash": "sibyl_app.naming.on_trash",
+	},
+}
+
 # Apps
 # ------------------
-
-# required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
