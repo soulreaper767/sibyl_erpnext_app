@@ -106,21 +106,37 @@ def on_trash(doc, method=None):
 # ---------------------------------------------------------------- series key
 
 
-def get_customer(doc, rule):
+def get_customer(doc, rule, meta=None):
+	"""doc may be a Document or a plain dict row (then pass meta)."""
+	meta = meta or doc.meta
 	if rule.customer_field:
 		return doc.get(rule.customer_field)
-	if doc.doctype in PARTY_SELECTOR_FIELDS:
-		type_field, party_field = PARTY_SELECTOR_FIELDS[doc.doctype]
+	if meta.name in PARTY_SELECTOR_FIELDS:
+		type_field, party_field = PARTY_SELECTOR_FIELDS[meta.name]
 		return doc.get(party_field) if doc.get(type_field) == "Customer" else None
-	if doc.meta.has_field("party_type") and doc.meta.has_field("party"):
-		return doc.party if doc.party_type == "Customer" else None
-	if doc.meta.has_field("customer"):
+	if meta.has_field("party_type") and meta.has_field("party"):
+		return doc.get("party") if doc.get("party_type") == "Customer" else None
+	if meta.has_field("customer"):
 		return doc.get("customer")
 	return None
 
 
-def is_return(doc):
-	if doc.doctype == "Payment Entry":
+def customer_fields(rule, meta):
+	"""Fields get_customer/is_return need, for reading rows without loading documents."""
+	if rule.customer_field:
+		fields = [rule.customer_field]
+	elif meta.name in PARTY_SELECTOR_FIELDS:
+		fields = list(PARTY_SELECTOR_FIELDS[meta.name])
+	elif meta.has_field("party_type") and meta.has_field("party"):
+		fields = ["party_type", "party"]
+	else:
+		fields = ["customer"]
+	fields += [f for f in ("is_return", "payment_type") if meta.has_field(f)]
+	return fields
+
+
+def is_return(doc, doctype=None):
+	if (doctype or doc.doctype) == "Payment Entry":
 		return doc.get("payment_type") == "Pay"
 	return bool(cint(doc.get("is_return")))
 

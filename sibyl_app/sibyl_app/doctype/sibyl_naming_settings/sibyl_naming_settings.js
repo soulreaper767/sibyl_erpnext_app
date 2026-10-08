@@ -11,7 +11,47 @@ frappe.ui.form.on("Sibyl Naming Settings", {
 			});
 		});
 		frm.add_custom_button(__("Customers"), () => frappe.set_route("List", "Customer"));
+		if (frappe.user.has_role("System Manager")) {
+			frm.add_custom_button(__("Rename Existing Documents"), () => frm.trigger("rename_existing"));
+		}
 		frm.trigger("render_preview");
+	},
+	rename_existing(frm) {
+		if (frm.is_dirty()) {
+			frappe.msgprint(__("Save the settings first."));
+			return;
+		}
+		frappe.call({
+			method: `${METHOD}.preview_existing_renames`,
+			freeze: true,
+			freeze_message: __("Checking existing documents..."),
+			callback: ({ message: summary }) => {
+				const rows = Object.entries(summary || {});
+				const total = rows.reduce((n, [, s]) => n + s.to_rename, 0);
+				if (!total) {
+					frappe.msgprint(__("All existing documents already follow customer-wise naming."));
+					return;
+				}
+				const esc = frappe.utils.escape_html;
+				const table = rows
+					.filter(([, s]) => s.to_rename)
+					.map(
+						([dt, s]) => `<tr><td>${esc(__(dt))}</td><td class="text-right">${s.to_rename}</td>
+						<td class="text-muted small">${s.examples.map(([o, n]) => `${esc(o)} &rarr; ${esc(n)}`).join("<br>")}</td></tr>`
+					)
+					.join("");
+				frappe.confirm(
+					`<p>${__("{0} existing document(s) will be renamed and renumbered per customer, oldest first. All links (ledgers, payments, references) are updated. This cannot be undone automatically - take a backup first.", [total])}</p>
+					<table class="table table-bordered small"><tr><th>${__("Document")}</th><th>${__("Count")}</th><th>${__("Examples")}</th></tr>${table}</table>`,
+					() =>
+						frappe.call({
+							method: `${METHOD}.rename_existing_documents`,
+							callback: () =>
+								frappe.msgprint(__("Renaming started in the background. Check Background Jobs for progress.")),
+						})
+				);
+			},
+		});
 	},
 	name_pattern(frm) {
 		frm.trigger("render_preview");

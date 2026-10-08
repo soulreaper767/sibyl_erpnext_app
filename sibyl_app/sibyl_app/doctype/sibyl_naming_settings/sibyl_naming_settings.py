@@ -69,6 +69,27 @@ def assign_missing_customer_ids():
 
 
 @frappe.whitelist()
+def preview_existing_renames():
+	frappe.only_for("System Manager")
+	from sibyl_app.rename_existing import run
+
+	return run(dry_run=True)
+
+
+@frappe.whitelist()
+def rename_existing_documents():
+	frappe.only_for("System Manager")
+	frappe.enqueue(
+		"sibyl_app.rename_existing.run",
+		queue="long",
+		timeout=6 * 60 * 60,
+		job_id="sibyl_app::rename_existing",
+		deduplicate=True,
+	)
+	return True
+
+
+@frappe.whitelist()
 def preview(name_pattern, prefix="SO", return_prefix=None):
 	sample = frappe.db.get_value(
 		"Customer", {"sibyl_customer_id": ("is", "set")}, ["customer_name", "sibyl_customer_id"], as_dict=True
