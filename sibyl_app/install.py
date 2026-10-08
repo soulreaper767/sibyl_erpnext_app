@@ -5,6 +5,10 @@ from frappe.custom.doctype.property_setter.property_setter import make_property_
 from sibyl_app.naming import CUSTOMER_ID_FIELD, DEFAULT_RULES, SETTINGS, backfill_customer_ids
 
 
+def has_app_permission():
+	return frappe.has_permission("Sibyl Naming Settings", "read") or frappe.has_permission("Customer", "read")
+
+
 def after_install():
 	setup()
 

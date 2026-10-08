@@ -7,6 +7,16 @@ app_license = "mit"
 
 required_apps = ["erpnext"]
 
+add_to_apps_screen = [
+	{
+		"name": app_name,
+		"logo": "/assets/sibyl_app/images/sibyl-app-logo.svg",
+		"title": app_title,
+		"route": "/desk/sibyl-app",
+		"has_permission": "sibyl_app.install.has_app_permission",
+	}
+]
+
 after_install = "sibyl_app.install.after_install"
 after_migrate = "sibyl_app.install.after_migrate"
 
