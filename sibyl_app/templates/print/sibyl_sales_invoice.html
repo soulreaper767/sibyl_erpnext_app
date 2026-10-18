@@ -1,0 +1,341 @@
+{#-
+  SIBYL - SALES INVOICE  (print format "Sibyl Sales Invoice" includes this file)
+
+  Built for wkhtmltopdf 0.12 (patched Qt / old WebKit):
+  - real <table> layout only (no flex/grid), literal colours (no CSS variables)
+  - font embedded (inter_fonts.css) so every server renders the same metrics
+  - page margins come from the `.print-format { margin-* }` rule below (Frappe reads it into wkhtmltopdf)
+  - only the slim footer repeats (needs Print Settings > Repeat Header and Footer); the header prints once
+-#}
+{%- set fmt = frappe.utils.fmt_money -%}
+{%- macro amt(v) -%}{{ fmt(v, 2) }}{%- endmacro -%}
+{%- macro qty(v) -%}{{ (v|int) if v == (v|int) else frappe.utils.flt(v, 3) }}{%- endmacro -%}
+
+{#- ---------- data ---------- -#}
+{%- set company_tax_id = frappe.db.get_value("Company", doc.company, "tax_id") -%}
+{%- set company_addr_name = doc.company_address or frappe.db.get_value("Dynamic Link", {"link_doctype": "Company", "link_name": doc.company, "parenttype": "Address"}, "parent") -%}
+{%- set company_addr = frappe.get_doc("Address", company_addr_name) if company_addr_name else None -%}
+
+{%- set cust_addr_name = doc.customer_address or frappe.db.get_value("Dynamic Link", {"link_doctype": "Customer", "link_name": doc.customer, "parenttype": "Address"}, "parent") -%}
+{%- set cust_addr = frappe.get_doc("Address", cust_addr_name) if cust_addr_name else None -%}
+{%- set contact_name = doc.contact_person or frappe.db.get_value("Dynamic Link", {"link_doctype": "Customer", "link_name": doc.customer, "parenttype": "Contact"}, "parent") -%}
+{%- set contact = frappe.get_doc("Contact", contact_name) if contact_name else None -%}
+{%- set customer_id = frappe.db.get_value("Customer", doc.customer, "sibyl_customer_id") -%}
+
+{%- set sales_orders = [] -%}
+{%- for row in doc.items -%}{%- if row.sales_order and row.sales_order not in sales_orders -%}{%- set _ = sales_orders.append(row.sales_order) -%}{%- endif -%}{%- endfor -%}
+{%- set has_discount = doc.items | selectattr("discount_percentage") | list | length > 0 -%}
+{%- set has_adjustments = doc.discount_amount or doc.total_taxes_and_charges or doc.rounding_adjustment -%}
+{%- set due_note = "Advance" if doc.due_date and doc.due_date == doc.posting_date else ("Due " ~ frappe.utils.formatdate(doc.due_date) if doc.due_date else "") -%}
+{%- set pay = get_invoice_payment_status(doc) if doc.docstatus == 1 and not doc.is_return else None -%}
+
+<style>
+{% include "sibyl_app/templates/print/inter_fonts.css" %}
+
+  /* Frappe reads ONLY this exact rule into wkhtmltopdf page margins ... */
+  .print-format { margin-top: 10mm; margin-bottom: 14mm; margin-left: 12mm; margin-right: 12mm; }
+  /* ... but it is also real CSS, so cancel it on the element (otherwise margins double) */
+  html body div.print-format { margin: 0 !important; padding: 0 !important; max-width: none !important; min-height: 0 !important; }
+  /* the repeated footer is a separate page whose body Frappe pads 15mm 0 5mm - pull it back up */
+  html body { padding: 0 !important; margin: 0 !important; }
+
+  .print-format, .sx {
+    font-family: 'SibylInter', 'Helvetica Neue', Arial, 'DejaVu Sans', sans-serif;
+    font-size: 8.3pt; line-height: 1.38; color: #1d2433;
+    -webkit-print-color-adjust: exact;
+  }
+  .sx * { -webkit-box-sizing: border-box; box-sizing: border-box; }
+  .sx table { border-collapse: collapse; width: 100%; }
+
+  /* Frappe's print CSS forces borders / responsive stacking on every table - reset, then re-declare */
+  .print-format .sx table, .print-format .sx tr, .print-format .sx td, .print-format .sx th { border: none !important; }
+  .print-format .sx table { display: table !important; margin: 0; }
+  .print-format .sx thead { display: table-header-group !important; }
+  .print-format .sx tbody { display: table-row-group !important; }
+  .print-format .sx tr { display: table-row !important; }
+  /* Frappe forces `.print-format td { padding: 6px !important; vertical-align: top !important }` - every cell rule below must out-specify it with !important */
+  .print-format .sx td, .print-format .sx th { display: table-cell !important; padding: 0 !important; vertical-align: top !important; }
+
+  /* type scale */
+  .sx .muted { color: #667085; }
+  .sx .cap {
+    font-size: 6.6pt; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: #667085;
+  }
+  .sx .r { text-align: right; }
+  .sx .c { text-align: center; }
+  .sx .nw { white-space: nowrap; }
+  .sx b, .sx strong { font-weight: 600; }
+
+  /* ---------- header ---------- */
+  .print-format .sx .hdr td { vertical-align: bottom !important; }
+  .sx .logo { height: 28px; margin-bottom: 5px; }
+  .sx .co-name { font-size: 10.5pt; font-weight: 700; color: #14213d; }
+  .sx .co-meta { font-size: 7.2pt; color: #667085; line-height: 1.45; }
+  .sx .doc-title { font-size: 16pt; font-weight: 700; color: #14213d; letter-spacing: 1.2px; line-height: 1.1; }
+  .sx .doc-sub { font-size: 6.6pt; letter-spacing: 0.7px; text-transform: uppercase; color: #667085; margin: 2px 0 5px 0; }
+  .print-format .sx .kv { width: auto; margin-left: auto; }
+  .print-format .sx .kv td { padding: 0.5px 0 0.5px 12px !important; font-size: 7.8pt; white-space: nowrap; }
+  .print-format .sx .kv td.k { color: #667085; }
+  .print-format .sx .kv td.v { font-weight: 600; text-align: right; }
+  .sx .flag { display: inline-block; padding: 1px 7px; font-size: 6.8pt; font-weight: 700; letter-spacing: 0.6px; color: #b42318; border: 1px solid #b42318; }
+  .sx .rule { height: 0; border-top: 1.5px solid #14213d; margin: 9px 0 9px 0; }
+
+  /* ---------- parties ---------- */
+  .print-format .sx .parties td { width: 33.33%; padding: 0 14px 0 0 !important; }
+  .print-format .sx .parties td:last-child { padding: 0 !important; }
+  .sx .p-name { font-size: 9pt; font-weight: 600; margin: 2px 0 1px 0; }
+  .sx .p-line { font-size: 7.6pt; color: #3d4556; }
+  .print-format .sx .acct td { padding: 0 6px 0.5px 0 !important; font-size: 7.6pt; }
+  .print-format .sx .acct td.k { color: #667085; width: 40%; }
+  .print-format .sx .acct td.v { font-weight: 600; }
+
+  /* ---------- items ---------- */
+  .print-format .sx table.items { margin-top: 12px; }
+  .print-format .sx .items th {
+    font-size: 6.6pt; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #ffffff;
+    background: #14213d; padding: 4px 6px !important; text-align: left;
+  }
+  .print-format .sx .items th.r { text-align: right; }
+  .print-format .sx .items th.c { text-align: center; }
+  .print-format .sx .items td { padding: 4px 6px !important; border-bottom: 1px solid #e4e7ec !important; }
+  .print-format .sx .items tr { page-break-inside: avoid; }
+  .sx .i-name { font-weight: 600; }
+  .sx .i-sub { font-size: 7pt; color: #667085; margin-top: 1px; }
+
+  /* ---------- summary ---------- */
+  .print-format .sx table.summary { margin-top: 9px; page-break-inside: avoid; }
+  .print-format .sx .summary td.left { width: 56%; padding: 0 18px 0 0 !important; }
+  .sx .words { font-size: 7.8pt; margin-top: 2px; }
+  .sx .notes { font-size: 7.4pt; color: #3d4556; margin-top: 6px; }
+  .print-format .sx .totals td { padding: 1.5px 6px !important; font-size: 8.2pt; white-space: nowrap; }
+  .print-format .sx .totals tr.grand td {
+    border-top: 1.5px solid #14213d !important; padding-top: 4px !important; font-size: 10pt; font-weight: 700; color: #14213d;
+  }
+
+  /* ---------- payment status ---------- */
+  .sx .pay { margin-top: 16px; }
+  .print-format .sx .pay-hdr td { vertical-align: bottom !important; padding: 0 0 3px 0 !important; border-bottom: 1.5px solid #14213d !important; }
+  .sx .pay-title { font-size: 8.4pt; font-weight: 700; color: #14213d; letter-spacing: 0.6px; text-transform: uppercase; }
+  .sx .pill { display: inline-block; padding: 1px 7px; font-size: 6.8pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border: 1px solid #14213d; color: #14213d; white-space: nowrap; }
+  .sx .pill.paid { border-color: #1a7f37; color: #1a7f37; }
+  .sx .pill.overdue { border-color: #b42318; color: #b42318; }
+  .sx .pay-note { font-size: 7.4pt; margin: 3px 0 4px 0; color: #3d4556; }
+  .sx .pay-note.paid { color: #1a7f37; }
+  .sx .pay-note.overdue { color: #b42318; }
+  .print-format .sx .ptab th { font-size: 6.6pt; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #667085; padding: 3px 6px !important; text-align: left; border-bottom: 1px solid #d0d5dd !important; }
+  .print-format .sx .ptab th.r { text-align: right; }
+  .print-format .sx .ptab td { padding: 3px 6px !important; font-size: 7.8pt; border-bottom: 1px solid #eef0f3 !important; }
+  .print-format .sx .ptab tr { page-break-inside: avoid; }
+  .sx .ptab tr.open td { color: #667085; }
+  .print-format .sx table.pbal { margin-top: 3px; page-break-inside: avoid; }
+  .print-format .sx .pbal td { padding: 1.5px 6px !important; font-size: 8.2pt; white-space: nowrap; }
+  .print-format .sx .pbal tr.due td.lbl, .print-format .sx .pbal tr.due td.amt { border-top: 1.5px solid #14213d !important; padding-top: 4px !important; font-size: 9.6pt; font-weight: 700; color: #14213d; }
+  .print-format .sx .pbal tr.due.overdue td.amt { color: #b42318; }
+  .print-format .sx .pbal tr.due.paid td.amt { color: #1a7f37; }
+
+  /* ---------- sign / footer ---------- */
+  .print-format .sx table.sign { margin-top: 30px; page-break-inside: avoid; }
+  .print-format .sx .sign td { width: 50%; }
+  .sx .sign-line { border-top: 1px solid #98a2b3; width: 62%; padding-top: 3px; font-size: 7pt; color: #667085; }
+  .sx .sign-line.right { margin-left: 38%; text-align: right; }
+  .sx.foot { border-top: 1px solid #d0d5dd; padding-top: 3px; margin-top: 3mm; }
+  .print-format .sx.foot td { font-size: 6.6pt; color: #98a2b3; padding: 0 !important; }
+</style>
+
+<div class="sx">
+
+  {#- ================= HEADER (first page only) ================= -#}
+  <table class="hdr">
+    <tr>
+      <td style="width:56%;">
+        <img class="logo" src="https://portal.sibyl.pk/files/logo-full-500.png" alt="{{ doc.company }}">
+        <div class="co-name">{{ doc.company }}</div>
+        <div class="co-meta">
+          {%- if company_addr %}
+          {{ company_addr.address_line1 or "" }}{% if company_addr.address_line2 %}, {{ company_addr.address_line2 }}{% endif %}, {{ company_addr.city or "" }}{% if company_addr.state %}, {{ company_addr.state }}{% endif %} {{ company_addr.pincode or "" }}<br>
+          {%- endif %}
+          {% if company_tax_id %}NTN {{ company_tax_id }}{% endif %}
+          {%- if company_addr and company_addr.phone %} &nbsp;&middot;&nbsp; {{ company_addr.phone }}{% endif %}
+          {%- if company_addr and company_addr.email_id %} &nbsp;&middot;&nbsp; {{ company_addr.email_id }}{% endif %}
+        </div>
+      </td>
+      <td style="width:44%;" class="r">
+        <div class="doc-title">{{ "CREDIT NOTE" if doc.is_return else "SALES INVOICE" }}</div>
+        <div class="doc-sub">Original for recipient{% if doc.docstatus == 0 %} &nbsp;<span class="flag">DRAFT</span>{% elif doc.docstatus == 2 %} &nbsp;<span class="flag">CANCELLED</span>{% endif %}</div>
+        <table class="kv">
+          <tr><td class="k">Invoice No.</td><td class="v">{{ doc.name }}</td></tr>
+          <tr><td class="k">Invoice Date</td><td class="v">{{ frappe.utils.formatdate(doc.posting_date) }}</td></tr>
+          <tr><td class="k">Due Date</td><td class="v">{{ frappe.utils.formatdate(doc.due_date) if doc.due_date else "&mdash;" }}</td></tr>
+          {% if doc.po_no %}<tr><td class="k">PO / Reference</td><td class="v">{{ doc.po_no }}</td></tr>{% endif %}
+          {% if doc.is_return and doc.return_against %}<tr><td class="k">Against Invoice</td><td class="v">{{ doc.return_against }}</td></tr>{% endif %}
+        </table>
+      </td>
+    </tr>
+  </table>
+  <div class="rule"></div>
+
+  {#- ================= PARTIES ================= -#}
+  <table class="parties">
+    <tr>
+      <td>
+        <div class="cap">Bill To</div>
+        <div class="p-name">{{ doc.customer_name or doc.customer }}</div>
+        {%- if cust_addr %}
+        <div class="p-line">{{ cust_addr.address_line1 or "" }}{% if cust_addr.address_line2 %}, {{ cust_addr.address_line2 }}{% endif %}</div>
+        <div class="p-line">{{ cust_addr.city or "" }}{% if cust_addr.state %}, {{ cust_addr.state }}{% endif %}{% if cust_addr.pincode %} {{ cust_addr.pincode }}{% endif %}{% if cust_addr.country %}, {{ cust_addr.country }}{% endif %}</div>
+        {%- endif %}
+        {% if doc.tax_id %}<div class="p-line">NTN {{ doc.tax_id }}</div>{% endif %}
+      </td>
+      <td>
+        <div class="cap">Contact</div>
+        {%- if contact %}
+        <div class="p-name">{{ contact.first_name or "" }}{% if contact.last_name %} {{ contact.last_name }}{% endif %}</div>
+        {% if contact.mobile_no %}<div class="p-line">Mobile: {{ contact.mobile_no }}</div>{% endif %}
+        {% if contact.phone and contact.phone != contact.mobile_no %}<div class="p-line">Tel: {{ contact.phone }}</div>{% endif %}
+        {%- elif doc.contact_display %}
+        <div class="p-name">{{ doc.contact_display }}</div>
+        {% if doc.contact_mobile %}<div class="p-line">Mobile: {{ doc.contact_mobile }}</div>{% endif %}
+        {%- else %}
+        <div class="p-line muted">&mdash;</div>
+        {%- endif %}
+      </td>
+      <td>
+        <div class="cap">Account</div>
+        <table class="acct" style="margin-top:2px;">
+          {% if customer_id %}<tr><td class="k">Customer ID</td><td class="v">{{ customer_id }}</td></tr>{% endif %}
+          {% if sales_orders %}<tr><td class="k">Sales Order</td><td class="v">{{ sales_orders | join(", ") }}</td></tr>{% endif %}
+          {% if due_note %}<tr><td class="k">Terms</td><td class="v">{{ due_note }}</td></tr>{% endif %}
+          <tr><td class="k">Currency</td><td class="v">{{ doc.currency }}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {#- ================= ITEMS ================= -#}
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:4%;">#</th>
+        <th>Description</th>
+        <th class="r" style="width:10%;">Qty</th>
+        <th class="r" style="width:15%;">Rate</th>
+        {% if has_discount %}<th class="r" style="width:8%;">Disc %</th>{% endif %}
+        <th class="r" style="width:17%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in doc.items %}
+      <tr>
+        <td class="muted">{{ row.idx }}</td>
+        <td>
+          <div class="i-name">{{ row.item_name }}</div>
+          {%- set desc = (row.description or "") | striptags | trim %}
+          <div class="i-sub">{{ row.item_code }}{% if desc and desc != row.item_name %} &nbsp;&middot;&nbsp; {{ desc }}{% endif %}</div>
+        </td>
+        <td class="r nw">{{ qty(row.qty) }} {{ row.uom or row.stock_uom }}</td>
+        <td class="r nw">{{ amt(row.rate) }}</td>
+        {% if has_discount %}<td class="r nw">{{ "%.2f"|format(row.discount_percentage) if row.discount_percentage else "&mdash;" }}</td>{% endif %}
+        <td class="r nw">{{ amt(row.amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {#- ================= SUMMARY ================= -#}
+  <table class="summary">
+    <tr>
+      <td class="left">
+        {% if doc.in_words %}
+        <div class="cap">Amount in words</div>
+        <div class="words"><b>{{ doc.in_words }}</b></div>
+        {% endif %}
+        {%- set notes = (doc.terms or "") | striptags | trim %}
+        {% if notes %}
+        <div class="cap" style="margin-top:7px;">Notes</div>
+        <div class="notes">{{ notes }}</div>
+        {% endif %}
+      </td>
+      <td>
+        <table class="totals">
+          {% if has_adjustments %}
+          <tr><td>Subtotal</td><td class="r nw">{{ amt(doc.total) }}</td></tr>
+          {% if doc.discount_amount %}<tr><td>Discount</td><td class="r nw">&minus; {{ amt(doc.discount_amount) }}</td></tr>{% endif %}
+          {% for tax in doc.taxes %}{% if tax.tax_amount %}<tr><td>{{ tax.description }}</td><td class="r nw">{{ amt(tax.tax_amount) }}</td></tr>{% endif %}{% endfor %}
+          {% if doc.rounding_adjustment %}<tr><td>Rounding</td><td class="r nw">{{ amt(doc.rounding_adjustment) }}</td></tr>{% endif %}
+          {% endif %}
+          <tr class="grand"><td>Total ({{ doc.currency }})</td><td class="r nw">{{ amt(doc.rounded_total or doc.grand_total) }}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {#- ================= PAYMENT STATUS ================= -#}
+  {% if pay %}
+  <div class="pay">
+    <table class="pay-hdr">
+      <tr>
+        <td><span class="pay-title">Payment Status</span> <span class="muted" style="font-size:7.2pt;">&nbsp;as on {{ frappe.utils.formatdate(pay.as_on) }}</span></td>
+        <td class="r"><span class="pill {{ pay.tone }}">{{ pay.title }}{% if pay.overdue_days %} &middot; {{ pay.overdue_days }} day{{ "s" if pay.overdue_days != 1 }} overdue{% endif %}</span></td>
+      </tr>
+    </table>
+    <div class="pay-note {{ pay.tone }}">{{ pay.label }}</div>
+    <table class="ptab">
+      <thead>
+        <tr>
+          <th style="width:14%;">Date</th>
+          <th style="width:19%;">Receipt No.</th>
+          <th style="width:17%;">Mode</th>
+          <th>Reference</th>
+          <th class="r" style="width:16%;">Received</th>
+          <th class="r" style="width:16%;">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="open">
+          <td>{{ frappe.utils.formatdate(doc.posting_date) }}</td>
+          <td colspan="3">Invoice amount</td>
+          <td></td>
+          <td class="r nw">{{ amt(pay.invoice_amount) }}</td>
+        </tr>
+        {% for p in pay.rows %}
+        <tr>
+          <td class="nw">{{ frappe.utils.formatdate(p.date) }}</td>
+          <td class="nw">{{ p.voucher_no }}</td>
+          <td>{{ p.mode }}</td>
+          <td>{{ p.reference or "&mdash;" }}</td>
+          <td class="r nw">{{ amt(p.amount) }}</td>
+          <td class="r nw">{{ amt(p.balance) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted c" style="padding:6px;">No payment received against this invoice yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table class="pbal">
+      <tr><td style="width:52%;"></td><td>Total Received</td><td class="r nw">{{ amt(pay.received) }}</td></tr>
+      <tr class="due {{ pay.tone }}"><td></td><td class="lbl">Balance Receivable ({{ doc.currency }})</td><td class="r nw amt">{{ amt(pay.balance) }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
+  {#- ================= SIGNATURES ================= -#}
+  <table class="sign">
+    <tr>
+      <td><div class="sign-line">Received by (customer)</div></td>
+      <td><div class="sign-line right">For {{ doc.company }}</div></td>
+    </tr>
+  </table>
+
+  {#- ================= FOOTER (repeats on every page) ================= -#}
+  <div {% if print_settings.repeat_header_footer %}id="footer-html" class="visible-pdf"{% endif %}>
+    <div class="sx foot">
+      <table>
+        <tr>
+          <td>{{ doc.company }}{% if company_tax_id %} &nbsp;&middot;&nbsp; NTN {{ company_tax_id }}{% endif %} &nbsp;&middot;&nbsp; Sales Invoice {{ doc.name }}</td>
+          <td class="r nw">{% if print_settings.repeat_header_footer %}Page <span class="page"></span> of <span class="topage"></span>{% endif %}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</div>
