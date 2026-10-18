@@ -17,6 +17,14 @@ add_to_apps_screen = [
 	}
 ]
 
+jinja = {
+	"methods": ["sibyl_app.invoice_payments.get_invoice_payment_status"],
+}
+
+doctype_js = {
+	"Sales Invoice": "public/js/sales_invoice.js",
+}
+
 after_install = "sibyl_app.install.after_install"
 after_migrate = "sibyl_app.install.after_migrate"
 
