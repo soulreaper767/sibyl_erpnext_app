@@ -19,11 +19,12 @@ import re
 
 import frappe
 from frappe import _
-from frappe.model.naming import make_autoname, revert_series_if_last
+from frappe.model.naming import getseries, make_autoname, revert_series_if_last
 from frappe.utils import cint
 
 SETTINGS = "Sibyl Naming Settings"
 CUSTOMER_ID_FIELD = "sibyl_customer_id"
+CUSTOMER_ID_SERIES = "SIBYL-CUSTOMER-ID"
 CUSTOMER_ID_RE = re.compile(r"^[A-Z0-9]+(?:-[A-Z0-9]+)*$")
 CUSTOMER_ID_MAX_LEN = 20
 
@@ -188,14 +189,14 @@ def customer_id_taken(customer_id, exclude_customer=None):
 
 def generate_customer_id(customer_name, exclude_customer=None):
 	settings = get_settings()
-	if settings and settings.customer_id_mode == "Sequential":
-		return _next_sequential_id(settings, exclude_customer)
+	if not settings or settings.customer_id_mode != "From Customer Name":
+		return _next_numeric_id(settings, exclude_customer)
 
 	words = re.findall(r"[A-Z0-9]+", (customer_name or "").upper())
 	words = [w for w in words if w not in NAME_STOPWORDS] or words
 	if not words:
 		# e.g. a name entirely in a non-Latin script
-		return _next_sequential_id(settings, exclude_customer)
+		return _next_numeric_id(settings, exclude_customer)
 
 	length = min(max(cint(settings.customer_id_length if settings else 0) or 4, 2), 12)
 	base = ""
@@ -212,13 +213,52 @@ def generate_customer_id(customer_name, exclude_customer=None):
 	return candidate
 
 
-def _next_sequential_id(settings, exclude_customer=None):
-	prefix = normalize_customer_id(settings.customer_id_prefix if settings else "") or "C"
-	digits = min(max(cint(settings.customer_id_digits if settings else 0) or 4, 2), 8)
+def _next_numeric_id(settings, exclude_customer=None):
+	"""Optional prefix + running number, e.g. 1001, 1002 ... (or C1001 with prefix C).
+
+	Uses its own row in tabSeries so the counter is independent of any prefix
+	and safe under concurrent inserts (getseries locks the row)."""
+	prefix = normalize_customer_id(settings.customer_id_prefix if settings else "")
+	digits = min(max(cint(settings.customer_id_digits if settings else 0) or 4, 1), 10)
+	start = max(cint(settings.customer_id_start if settings else 0) or 1001, 1)
+	_ensure_counter_at_least(CUSTOMER_ID_SERIES, start - 1)
 	while True:
-		candidate = make_autoname(f"{prefix}.{'#' * digits}")
+		candidate = prefix + str(cint(getseries(CUSTOMER_ID_SERIES, 1))).zfill(digits)
 		if not customer_id_taken(candidate, exclude_customer):
 			return candidate
+
+
+def _ensure_counter_at_least(key, value):
+	current = frappe.db.get_value("Series", key, "current", order_by=None)
+	if current is None:
+		frappe.db.sql("insert into `tabSeries` (`name`, `current`) values (%s, %s)", (key, value))
+	elif cint(current) < value:
+		frappe.db.sql("update `tabSeries` set `current` = %s where `name` = %s", (value, key))
+
+
+def reset_numeric_counter():
+	"""Next numeric ID becomes the configured start number."""
+	settings = get_settings()
+	start = max(cint(settings.customer_id_start if settings else 0) or 1001, 1)
+	_ensure_counter_at_least(CUSTOMER_ID_SERIES, 0)
+	frappe.db.sql("update `tabSeries` set `current` = %s where `name` = %s", (start - 1, CUSTOMER_ID_SERIES))
+
+
+def regenerate_all_customer_ids():
+	"""Give every customer a fresh ID under the current mode, oldest customer first.
+	Returns [(customer, old_id, new_id)]. Document renaming is a separate step."""
+	customers = frappe.get_all(
+		"Customer", fields=["name", "customer_name", CUSTOMER_ID_FIELD], order_by="creation asc, name asc"
+	)
+	# clear first so new IDs can't clash with old ones still in place
+	frappe.db.sql(f"update `tabCustomer` set `{CUSTOMER_ID_FIELD}` = NULL")
+	reset_numeric_counter()
+	changes = []
+	for row in customers:
+		new_id = generate_customer_id(row.customer_name or row.name, exclude_customer=row.name)
+		frappe.db.set_value("Customer", row.name, CUSTOMER_ID_FIELD, new_id, update_modified=False)
+		changes.append((row.name, row.get(CUSTOMER_ID_FIELD), new_id))
+	return changes
 
 
 def assign_customer_id(customer):

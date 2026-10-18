@@ -12,8 +12,9 @@
   "customer_id_section",
   "customer_id_mode",
   "customer_id_length",
-  "customer_id_prefix",
+  "customer_id_start",
   "customer_id_digits",
+  "customer_id_prefix",
   "column_break_cid",
   "auto_assign_customer_id",
   "rules_section",
@@ -57,12 +58,12 @@
    "label": "Customer ID"
   },
   {
-   "default": "From Customer Name",
-   "description": "From Customer Name: \"Acme Traders Pvt Ltd\" becomes ACME (ACME2, ACME3 ... on clashes). Sequential: C0001, C0002 ...",
+   "default": "Numeric",
+   "description": "Numeric: 1001, 1002, 1003 ... so documents are named SO-1001-0001. From Customer Name: \"Acme Traders Pvt Ltd\" becomes ACME (ACME2 ... on clashes). After changing the mode, use Regenerate All Customer IDs to re-number existing customers and their documents.",
    "fieldname": "customer_id_mode",
    "fieldtype": "Select",
    "label": "Customer ID Mode",
-   "options": "From Customer Name\nSequential"
+   "options": "Numeric\nFrom Customer Name"
   },
   {
    "default": "4",
@@ -72,18 +73,27 @@
    "label": "ID Length (letters from name)"
   },
   {
-   "default": "C",
-   "depends_on": "eval:doc.customer_id_mode=='Sequential'",
-   "fieldname": "customer_id_prefix",
-   "fieldtype": "Data",
-   "label": "Sequential ID Prefix"
+   "default": "1001",
+   "depends_on": "eval:doc.customer_id_mode=='Numeric'",
+   "description": "First customer gets this number, the next one +1.",
+   "fieldname": "customer_id_start",
+   "fieldtype": "Int",
+   "label": "Starting Number"
   },
   {
    "default": "4",
-   "depends_on": "eval:doc.customer_id_mode=='Sequential'",
+   "depends_on": "eval:doc.customer_id_mode=='Numeric'",
+   "description": "Minimum digits; shorter numbers are zero-padded (4 digits: 7 becomes 0007).",
    "fieldname": "customer_id_digits",
    "fieldtype": "Int",
-   "label": "Sequential ID Digits"
+   "label": "Digits"
+  },
+  {
+   "depends_on": "eval:doc.customer_id_mode=='Numeric'",
+   "description": "Optional letters before the number, e.g. C gives C1001. Leave blank for a plain number.",
+   "fieldname": "customer_id_prefix",
+   "fieldtype": "Data",
+   "label": "ID Prefix (optional)"
   },
   {
    "fieldname": "column_break_cid",
@@ -125,7 +135,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-09 00:00:00.000000",
+ "modified": "2026-10-19 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Sibyl App",
  "name": "Sibyl Naming Settings",

@@ -89,6 +89,33 @@ def rename_existing_documents():
 	return True
 
 
+@frappe.whitelist(methods=["POST"])
+def regenerate_customer_ids():
+	"""Re-number every customer under the current Customer ID Mode (oldest first), then
+	rename their existing documents to match. Runs inline for small sites, else as a job."""
+	frappe.only_for("System Manager")
+	if frappe.db.count("Customer") > 300:
+		frappe.enqueue(
+			"sibyl_app.sibyl_app.doctype.sibyl_naming_settings.sibyl_naming_settings._regenerate",
+			queue="long",
+			timeout=6 * 60 * 60,
+			job_id="sibyl_app::regenerate_customer_ids",
+			deduplicate=True,
+		)
+		return {"queued": True}
+	return _regenerate()
+
+
+def _regenerate():
+	from sibyl_app.naming import regenerate_all_customer_ids
+	from sibyl_app.rename_existing import run
+
+	changes = regenerate_all_customer_ids()
+	frappe.db.commit()
+	documents = run()
+	return {"customers": changes, "documents": documents}
+
+
 @frappe.whitelist()
 def preview(name_pattern, prefix="SO", return_prefix=None):
 	sample = frappe.db.get_value(
