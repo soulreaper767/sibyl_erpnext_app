@@ -31,6 +31,9 @@ after_migrate = "sibyl_app.install.after_migrate"
 doc_events = {
 	"Customer": {
 		"validate": "sibyl_app.naming.customer_validate",
+		# push renamed / edited customer names into the name copies on transactions
+		"on_update": "sibyl_app.customer_sync.on_update",
+		"after_rename": "sibyl_app.customer_sync.after_rename",
 	},
 	# Customer-wise naming - wired on "*" so any doctype added to
 	# Sibyl Naming Settings works without a code change; returns
