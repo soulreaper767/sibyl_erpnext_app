@@ -1,0 +1,242 @@
+{
+ "actions": [],
+ "creation": "2026-11-11 12:00:00.000000",
+ "description": "Connects the sibyl.pk website forms to this system.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "connection_section",
+  "enabled",
+  "site_url",
+  "column_break_conn",
+  "site_key",
+  "last_submission",
+  "routing_section",
+  "lead_owner",
+  "hr_owner",
+  "support_owner",
+  "column_break_routing",
+  "notify_emails",
+  "newsletter_group",
+  "replies_section",
+  "auto_reply",
+  "enquiry_template",
+  "application_template",
+  "support_template",
+  "column_break_replies",
+  "newsletter_template",
+  "alert_template",
+  "contact_section",
+  "public_email",
+  "public_phone",
+  "column_break_contact",
+  "whatsapp_no",
+  "limits_section",
+  "max_per_hour",
+  "max_file_mb"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Website Connection"
+  },
+  {
+   "default": "1",
+   "description": "When off, the website falls back to plain email for every form.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Accept website forms"
+  },
+  {
+   "default": "https://sibyl.pk",
+   "fieldname": "site_url",
+   "fieldtype": "Data",
+   "label": "Website address"
+  },
+  {
+   "fieldname": "column_break_conn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Shared secret the website sends with every form. The same value goes into config/secrets.php on the website server. Changing it here disconnects the website until it is updated there too.",
+   "fieldname": "site_key",
+   "fieldtype": "Password",
+   "label": "Website key"
+  },
+  {
+   "fieldname": "last_submission",
+   "fieldtype": "Datetime",
+   "label": "Last submission",
+   "read_only": 1
+  },
+  {
+   "fieldname": "routing_section",
+   "fieldtype": "Section Break",
+   "label": "Who handles what"
+  },
+  {
+   "description": "Owner of new Leads (contact, demo, project, Odoo and service enquiries).",
+   "fieldname": "lead_owner",
+   "fieldtype": "Link",
+   "label": "Enquiries go to",
+   "options": "User"
+  },
+  {
+   "fieldname": "hr_owner",
+   "fieldtype": "Link",
+   "label": "Job applications go to",
+   "options": "User"
+  },
+  {
+   "fieldname": "support_owner",
+   "fieldtype": "Link",
+   "label": "Support requests go to",
+   "options": "User"
+  },
+  {
+   "fieldname": "column_break_routing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "One email address per line. They get the same new-submission alert as the owners.",
+   "fieldname": "notify_emails",
+   "fieldtype": "Small Text",
+   "label": "Also alert these addresses"
+  },
+  {
+   "fieldname": "newsletter_group",
+   "fieldtype": "Link",
+   "label": "Newsletter list",
+   "options": "Email Group"
+  },
+  {
+   "fieldname": "replies_section",
+   "fieldtype": "Section Break",
+   "label": "Automatic Replies"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_reply",
+   "fieldtype": "Check",
+   "label": "Send an automatic reply to the visitor"
+  },
+  {
+   "fieldname": "enquiry_template",
+   "fieldtype": "Link",
+   "label": "Enquiry reply",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "application_template",
+   "fieldtype": "Link",
+   "label": "Job application reply",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "support_template",
+   "fieldtype": "Link",
+   "label": "Support request reply",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "column_break_replies",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "newsletter_template",
+   "fieldtype": "Link",
+   "label": "Newsletter welcome",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "alert_template",
+   "fieldtype": "Link",
+   "label": "Staff alert",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "contact_section",
+   "fieldtype": "Section Break",
+   "label": "Shown in replies"
+  },
+  {
+   "default": "sibyltechnologiespk@gmail.com",
+   "fieldname": "public_email",
+   "fieldtype": "Data",
+   "label": "Public email"
+  },
+  {
+   "default": "+92 33 111 66 778",
+   "fieldname": "public_phone",
+   "fieldtype": "Data",
+   "label": "Public phone"
+  },
+  {
+   "fieldname": "column_break_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "923311166778",
+   "description": "Digits only, with country code.",
+   "fieldname": "whatsapp_no",
+   "fieldtype": "Data",
+   "label": "WhatsApp number"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "limits_section",
+   "fieldtype": "Section Break",
+   "label": "Limits"
+  },
+  {
+   "default": "5",
+   "fieldname": "max_per_hour",
+   "fieldtype": "Int",
+   "label": "Submissions per visitor per hour"
+  },
+  {
+   "default": "5",
+   "fieldname": "max_file_mb",
+   "fieldtype": "Int",
+   "label": "Largest CV upload (MB)"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-11 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sibyl App",
+ "name": "Sibyl Website Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "states": [],
+ "track_changes": 0
+}

@@ -25,6 +25,20 @@ def setup():
 	if backfill_customer_ids():
 		frappe.db.commit()
 	rename_existing_documents_once()
+	setup_website_forms()
+
+
+def setup_website_forms():
+	"""sibyl.pk forms -> Leads / Issues / Job Applicants / newsletter (see website_forms.py)."""
+	from sibyl_app.website_setup import setup as website_setup
+
+	try:
+		website_setup()
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Sibyl App: website forms setup failed")
+		print("Sibyl App: website forms setup failed - see Error Log; will retry on next migrate")
 
 
 def rename_existing_documents_once():
