@@ -1,0 +1,21 @@
+{#- Sibyl email footer (overrides frappe/templates/emails/email_footer.html). Drops the "Sent via ..."
+    default_mail_footer slot on purpose; keeps the unsubscribe and open-tracking placeholders that
+    frappe.email fills in later. -#}
+{%- set company = frappe.db.get_default("company") or "Sibyl Technologies" -%}
+{%- set app_name = frappe.db.get_single_value("System Settings", "app_name") or "Sibyl ERP" -%}
+{%- set reply_to = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "email_id") -%}
+{%- set font = "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" -%}
+<div class="sx-footer" style="border-top:1px solid #e4e7ec; padding-top:14px; font-family:{{ font }}; font-size:12px; line-height:1.55; color:#667085;">
+	{% if email_account_footer %}
+	<div style="margin-bottom:10px; color:#3d4556;">{{ email_account_footer }}</div>
+	{% endif %}
+	<div style="font-weight:700; color:#14213d;">{{ company }}</div>
+	{% if sender_address %}
+		{% for line in sender_address.splitlines() %}{% if line.strip() %}<div>{{ line }}</div>{% endif %}{% endfor %}
+	{% endif %}
+	<div style="margin-top:10px; font-size:11px; color:#98a2b3;">
+		This email was sent automatically by {{ app_name }}.{% if reply_to %} Replies reach our team at {{ reply_to }}.{% endif %}
+	</div>
+	<div style="margin-top:4px; font-size:11px;"><!--unsubscribe link here--></div>
+	<div class="email-pixel"><!--email_open_check--></div>
+</div>

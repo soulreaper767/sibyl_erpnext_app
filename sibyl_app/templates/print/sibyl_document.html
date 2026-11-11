@@ -1,0 +1,277 @@
+{#-
+  SIBYL - shared document print layout. Every "Sibyl <DocType>" print format includes this file.
+  What to show per doctype is decided in sibyl_app/print_utils.py (jinja method sibyl_print_context).
+  wkhtmltopdf notes live in sibyl_base.css.
+-#}
+{%- set x = sibyl_print_context(doc) -%}
+{%- set fmt = frappe.utils.fmt_money -%}
+{%- macro amt(v) -%}{{ fmt(v or 0, 2) }}{%- endmacro -%}
+{%- macro qty(v) -%}{{ (v|int) if v == (v|int) else frappe.utils.flt(v, 3) }}{%- endmacro -%}
+{%- set is_purchase = doc.doctype in ("Purchase Invoice",) -%}
+
+<style>
+{% include "sibyl_app/templates/print/sibyl_base.css" %}
+</style>
+
+<div class="sx">
+
+  {#- ================= HEADER (first page only) ================= -#}
+  <table class="hdr">
+    <tr>
+      <td style="width:56%;">
+        <img class="logo" src="{{ x.logo }}" alt="{{ x.company }}">
+        <div class="co-name">{{ x.company }}</div>
+        <div class="co-meta">
+          {% if x.company_address %}{{ x.company_address }}<br>{% endif %}
+          {{ x.company_extra }}
+        </div>
+      </td>
+      <td style="width:44%;" class="r">
+        <div class="doc-title">{{ x.title }}</div>
+        <div class="doc-sub">{{ x.subtitle or "&nbsp;" }}{% if doc.docstatus == 0 %} &nbsp;<span class="flag">DRAFT</span>{% elif doc.docstatus == 2 %} &nbsp;<span class="flag">CANCELLED</span>{% endif %}</div>
+        <table class="kv">
+          {% for k, v in x.meta %}<tr><td class="k">{{ k }}</td><td class="v">{{ v }}</td></tr>{% endfor %}
+        </table>
+      </td>
+    </tr>
+  </table>
+  <div class="rule"></div>
+
+  {#- ================= PARTIES ================= -#}
+  {% if x.party or x.account %}
+  <table class="parties">
+    <tr>
+      <td>
+        {% if x.party %}
+        <div class="cap">{{ x.party.label }}</div>
+        <div class="p-name">{{ x.party.name }}</div>
+        {% for line in x.party.lines %}<div class="p-line">{{ line }}</div>{% endfor %}
+        {% if x.party.tax_id %}<div class="p-line">NTN {{ x.party.tax_id }}</div>{% endif %}
+        {% endif %}
+      </td>
+      <td>
+        {% if x.party %}
+        <div class="cap">Contact</div>
+        {%- if x.contact %}
+        <div class="p-name">{{ x.contact.full_name }}</div>
+        {% if x.contact.mobile_no %}<div class="p-line">Mobile: {{ x.contact.mobile_no }}</div>{% endif %}
+        {% if x.contact.phone and x.contact.phone != x.contact.mobile_no %}<div class="p-line">Tel: {{ x.contact.phone }}</div>{% endif %}
+        {%- else %}
+        <div class="p-line muted">&mdash;</div>
+        {%- endif %}
+        {% endif %}
+      </td>
+      <td>
+        {% if x.account %}
+        <div class="cap">{{ "Account" if x.layout != "payment" else "Details" }}</div>
+        <table class="acct" style="margin-top:2px;">
+          {% for k, v in x.account %}<tr><td class="k">{{ k }}</td><td class="v">{{ v }}</td></tr>{% endfor %}
+        </table>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  {#- ================= ITEMS LAYOUT ================= -#}
+  {% if x.layout == "items" %}
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:4%;">#</th>
+        <th>Description</th>
+        <th class="r" style="width:12%;">Qty</th>
+        {% if x.show_prices %}
+        <th class="r" style="width:15%;">Rate</th>
+        {% if x.has_discount %}<th class="r" style="width:8%;">Disc %</th>{% endif %}
+        <th class="r" style="width:17%;">Amount</th>
+        {% else %}
+        <th style="width:22%;">{{ "Required By" if doc.doctype in ("Material Request", "Request for Quotation") else "Remarks" }}</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in doc.items %}
+      <tr>
+        <td class="muted">{{ row.idx }}</td>
+        <td>
+          <div class="i-name">{{ row.item_name }}</div>
+          {%- set desc = (row.description or "") | striptags | trim %}
+          <div class="i-sub">{{ row.item_code }}{% if desc and desc != row.item_name %} &nbsp;&middot;&nbsp; {{ desc }}{% endif %}</div>
+        </td>
+        <td class="r nw">{{ qty(row.qty) }} {{ row.uom or row.stock_uom }}</td>
+        {% if x.show_prices %}
+        <td class="r nw">{{ amt(row.rate) }}</td>
+        {% if x.has_discount %}<td class="r nw">{{ "%.2f"|format(row.discount_percentage) if row.discount_percentage else "&mdash;" }}</td>{% endif %}
+        <td class="r nw">{{ amt(row.amount) }}</td>
+        {% else %}
+        <td class="muted">{{ frappe.utils.formatdate(row.schedule_date) if row.get("schedule_date") and doc.doctype in ("Material Request", "Request for Quotation") else (row.get("rejected_qty") and ("Rejected " ~ qty(row.rejected_qty))) or "" }}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% if not x.show_prices %}
+    <tfoot><tr><td></td><td>Total quantity</td><td class="r nw">{{ qty(doc.total_qty or 0) }}</td><td></td></tr></tfoot>
+    {% endif %}
+  </table>
+
+  <table class="summary">
+    <tr>
+      <td class="left">
+        {% if x.show_prices and doc.in_words %}
+        <div class="cap">Amount in words</div>
+        <div class="words"><b>{{ doc.in_words }}</b></div>
+        {% endif %}
+        {% if x.notes %}
+        <div class="cap" style="margin-top:7px;">Notes</div>
+        <div class="notes">{{ x.notes }}</div>
+        {% endif %}
+      </td>
+      <td>
+        {% if x.show_prices %}
+        <table class="totals">
+          {% if x.has_adjustments %}
+          <tr><td>Subtotal</td><td class="r nw">{{ amt(doc.total) }}</td></tr>
+          {% if doc.discount_amount %}<tr><td>Discount</td><td class="r nw">&minus; {{ amt(doc.discount_amount) }}</td></tr>{% endif %}
+          {% for tax in doc.taxes or [] %}{% if tax.tax_amount %}<tr><td>{{ tax.description }}</td><td class="r nw">{{ amt(tax.tax_amount) }}</td></tr>{% endif %}{% endfor %}
+          {% if doc.rounding_adjustment %}<tr><td>Rounding</td><td class="r nw">{{ amt(doc.rounding_adjustment) }}</td></tr>{% endif %}
+          {% endif %}
+          <tr class="grand"><td>Total ({{ doc.currency }})</td><td class="r nw">{{ amt(doc.rounded_total or doc.grand_total) }}</td></tr>
+        </table>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  {#- ================= PAYMENT LAYOUT (Payment Entry) ================= -#}
+  {% if x.layout == "payment" %}
+  <table class="amtbox">
+    <tr>
+      <td style="width:42%;"><div class="amt-label">{{ x.amount_label }} ({{ doc.paid_to_account_currency or doc.paid_from_account_currency }})</div><div class="amt-value">{{ amt(x.amount) }}</div></td>
+      <td><div class="amt-label">In words</div><div class="amt-words"><b>{{ x.words }}</b></div></td>
+    </tr>
+  </table>
+  {% if doc.references %}
+  <div class="sec">{{ "Settled against" if doc.payment_type == "Receive" else "Paid against" }}</div>
+  <table class="items" style="margin-top:4px;">
+    <thead><tr><th style="width:4%;">#</th><th>Document</th><th class="r" style="width:14%;">Due Date</th><th class="r" style="width:18%;">Document Total</th><th class="r" style="width:17%;">Outstanding</th><th class="r" style="width:17%;">Allocated</th></tr></thead>
+    <tbody>
+      {% for r in doc.references %}
+      <tr>
+        <td class="muted">{{ r.idx }}</td>
+        <td><div class="i-name">{{ r.reference_name }}</div><div class="i-sub">{{ r.reference_doctype }}{% if r.bill_no %} &middot; {{ r.bill_no }}{% endif %}</div></td>
+        <td class="r nw">{{ frappe.utils.formatdate(r.due_date) if r.due_date else "&mdash;" }}</td>
+        <td class="r nw">{{ amt(r.total_amount) }}</td>
+        <td class="r nw">{{ amt(r.outstanding_amount) }}</td>
+        <td class="r nw">{{ amt(r.allocated_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><td></td><td colspan="4">Total allocated{% if doc.unallocated_amount %} &nbsp;<span class="muted" style="font-weight:400;">(unallocated {{ amt(doc.unallocated_amount) }})</span>{% endif %}</td><td class="r nw">{{ amt(doc.total_allocated_amount) }}</td></tr></tfoot>
+  </table>
+  {% endif %}
+  {% if doc.deductions %}
+  <div class="sec">Deductions</div>
+  <table class="items" style="margin-top:4px;">
+    <thead><tr><th>Account</th><th class="r" style="width:20%;">Amount</th></tr></thead>
+    <tbody>{% for d in doc.deductions %}<tr><td>{{ d.account }}</td><td class="r nw">{{ amt(d.amount) }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+  {% if x.notes %}<div class="sec">Remarks</div><div class="notes">{{ x.notes }}</div>{% endif %}
+  {% endif %}
+
+  {#- ================= JOURNAL LAYOUT (Journal Entry) ================= -#}
+  {% if x.layout == "journal" %}
+  <table class="items">
+    <thead><tr><th style="width:4%;">#</th><th>Account</th><th style="width:24%;">Party / Reference</th><th class="r" style="width:16%;">Debit</th><th class="r" style="width:16%;">Credit</th></tr></thead>
+    <tbody>
+      {% for a in doc.accounts %}
+      <tr>
+        <td class="muted">{{ a.idx }}</td>
+        <td><div class="i-name">{{ a.account }}</div>{% if a.user_remark %}<div class="i-sub">{{ a.user_remark }}</div>{% endif %}{% if a.cost_center %}<div class="i-sub">{{ a.cost_center }}</div>{% endif %}</td>
+        <td><div>{{ a.party or "" }}</div>{% if a.reference_name %}<div class="i-sub">{{ a.reference_type }} {{ a.reference_name }}</div>{% endif %}</td>
+        <td class="r nw">{{ amt(a.debit_in_account_currency) if a.debit_in_account_currency else "" }}</td>
+        <td class="r nw">{{ amt(a.credit_in_account_currency) if a.credit_in_account_currency else "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><td></td><td colspan="2">Total</td><td class="r nw">{{ amt(doc.total_debit) }}</td><td class="r nw">{{ amt(doc.total_credit) }}</td></tr></tfoot>
+  </table>
+  <table class="summary"><tr><td class="left">
+    {% if x.words %}<div class="cap">Amount in words</div><div class="words"><b>{{ x.words }}</b></div>{% endif %}
+    {% if x.notes %}<div class="cap" style="margin-top:7px;">Narration</div><div class="notes">{{ x.notes }}</div>{% endif %}
+  </td><td></td></tr></table>
+  {% endif %}
+
+  {#- ================= PAYMENT STATUS (invoices) ================= -#}
+  {% set pay = x.pay %}
+  {% if pay %}
+  <div class="pay">
+    <table class="pay-hdr">
+      <tr>
+        <td><span class="pay-title">Payment Status</span> <span class="muted" style="font-size:7.2pt;">&nbsp;as on {{ frappe.utils.formatdate(pay.as_on) }}</span></td>
+        <td class="r"><span class="pill {{ pay.tone }}">{{ pay.title }}{% if pay.overdue_days %} &middot; {{ pay.overdue_days }} day{{ "s" if pay.overdue_days != 1 }} overdue{% endif %}</span></td>
+      </tr>
+    </table>
+    <div class="pay-note {{ pay.tone }}">{{ pay.label }}</div>
+    <table class="ptab">
+      <thead>
+        <tr>
+          <th style="width:14%;">Date</th>
+          <th style="width:19%;">{{ "Payment No." if is_purchase else "Receipt No." }}</th>
+          <th style="width:17%;">Mode</th>
+          <th>Reference</th>
+          <th class="r" style="width:16%;">{{ "Paid" if is_purchase else "Received" }}</th>
+          <th class="r" style="width:16%;">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="open">
+          <td>{{ frappe.utils.formatdate(doc.posting_date) }}</td>
+          <td colspan="3">Invoice amount</td>
+          <td></td>
+          <td class="r nw">{{ amt(pay.invoice_amount) }}</td>
+        </tr>
+        {% for p in pay.rows %}
+        <tr>
+          <td class="nw">{{ frappe.utils.formatdate(p.date) }}</td>
+          <td class="nw">{{ p.voucher_no }}</td>
+          <td>{{ p.mode }}</td>
+          <td>{{ p.reference or "&mdash;" }}</td>
+          <td class="r nw">{{ amt(p.amount) }}</td>
+          <td class="r nw">{{ amt(p.balance) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted c" style="padding:6px;">No payment {{ "made" if is_purchase else "received" }} against this invoice yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table class="pbal">
+      <tr><td style="width:52%;"></td><td>Total {{ "Paid" if is_purchase else "Received" }}</td><td class="r nw">{{ amt(pay.received) }}</td></tr>
+      <tr class="due {{ pay.tone }}"><td></td><td class="lbl">Balance {{ "Payable" if is_purchase else "Receivable" }} ({{ doc.currency }})</td><td class="r nw amt">{{ amt(pay.balance) }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
+  {#- ================= SIGNATURES ================= -#}
+  <table class="sign">
+    <tr>
+      <td><div class="sign-line">{{ x.sign[0] }}</div></td>
+      <td><div class="sign-line right">{{ x.sign[1] }}</div></td>
+    </tr>
+  </table>
+
+  {#- ================= FOOTER (repeats on every page) ================= -#}
+  <div {% if print_settings.repeat_header_footer %}id="footer-html" class="visible-pdf"{% endif %}>
+    <div class="sx foot">
+      <table>
+        <tr>
+          <td>{{ x.company }}{% if x.company_tax_id %} &nbsp;&middot;&nbsp; NTN {{ x.company_tax_id }}{% endif %} &nbsp;&middot;&nbsp; {{ x.footer_label }}</td>
+          <td class="r nw">{% if print_settings.repeat_header_footer %}Page <span class="page"></span> of <span class="topage"></span>{% endif %}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</div>

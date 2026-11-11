@@ -18,7 +18,10 @@ add_to_apps_screen = [
 ]
 
 jinja = {
-	"methods": ["sibyl_app.invoice_payments.get_invoice_payment_status"],
+	"methods": [
+		"sibyl_app.invoice_payments.get_invoice_payment_status",
+		"sibyl_app.print_utils.sibyl_print_context",
+	],
 }
 
 doctype_js = {

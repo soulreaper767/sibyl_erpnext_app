@@ -1,0 +1,120 @@
+
+{% include "sibyl_app/templates/print/inter_fonts.css" %}
+
+  /* Frappe reads ONLY this exact rule into wkhtmltopdf page margins ... */
+  .print-format { margin-top: 10mm; margin-bottom: 14mm; margin-left: 12mm; margin-right: 12mm; }
+  /* ... but it is also real CSS, so cancel it on the element (otherwise margins double) */
+  html body div.print-format { margin: 0 !important; padding: 0 !important; max-width: none !important; min-height: 0 !important; }
+  /* the repeated footer is a separate page whose body Frappe pads 15mm 0 5mm - pull it back up */
+  html body { padding: 0 !important; margin: 0 !important; }
+
+  .print-format, .sx {
+    font-family: 'SibylInter', 'Helvetica Neue', Arial, 'DejaVu Sans', sans-serif;
+    font-size: 8.3pt; line-height: 1.38; color: #1d2433;
+    -webkit-print-color-adjust: exact;
+  }
+  .sx * { -webkit-box-sizing: border-box; box-sizing: border-box; }
+  .sx table { border-collapse: collapse; width: 100%; }
+
+  /* Frappe's print CSS forces borders / responsive stacking on every table - reset, then re-declare */
+  .print-format .sx table, .print-format .sx tr, .print-format .sx td, .print-format .sx th { border: none !important; }
+  .print-format .sx table { display: table !important; margin: 0; }
+  .print-format .sx thead { display: table-header-group !important; }
+  .print-format .sx tbody { display: table-row-group !important; }
+  .print-format .sx tr { display: table-row !important; }
+  /* Frappe forces `.print-format td { padding: 6px !important; vertical-align: top !important }` - every cell rule below must out-specify it with !important */
+  .print-format .sx td, .print-format .sx th { display: table-cell !important; padding: 0 !important; vertical-align: top !important; }
+
+  /* type scale */
+  .sx .muted { color: #667085; }
+  .sx .cap {
+    font-size: 6.6pt; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: #667085;
+  }
+  .sx .r { text-align: right; }
+  .sx .c { text-align: center; }
+  .sx .nw { white-space: nowrap; }
+  .sx b, .sx strong { font-weight: 600; }
+
+  /* ---------- header ---------- */
+  .print-format .sx .hdr td { vertical-align: bottom !important; }
+  .sx .logo { height: 28px; margin-bottom: 5px; }
+  .sx .co-name { font-size: 10.5pt; font-weight: 700; color: #14213d; }
+  .sx .co-meta { font-size: 7.2pt; color: #667085; line-height: 1.45; }
+  .sx .doc-title { font-size: 16pt; font-weight: 700; color: #14213d; letter-spacing: 1.2px; line-height: 1.1; }
+  .sx .doc-sub { font-size: 6.6pt; letter-spacing: 0.7px; text-transform: uppercase; color: #667085; margin: 2px 0 5px 0; }
+  .print-format .sx .kv { width: auto; margin-left: auto; }
+  .print-format .sx .kv td { padding: 0.5px 0 0.5px 12px !important; font-size: 7.8pt; white-space: nowrap; }
+  .print-format .sx .kv td.k { color: #667085; }
+  .print-format .sx .kv td.v { font-weight: 600; text-align: right; }
+  .sx .flag { display: inline-block; padding: 1px 7px; font-size: 6.8pt; font-weight: 700; letter-spacing: 0.6px; color: #b42318; border: 1px solid #b42318; }
+  .sx .rule { height: 0; border-top: 1.5px solid #14213d; margin: 9px 0 9px 0; }
+
+  /* ---------- parties ---------- */
+  .print-format .sx .parties td { width: 33.33%; padding: 0 14px 0 0 !important; }
+  .print-format .sx .parties td:last-child { padding: 0 !important; }
+  .sx .p-name { font-size: 9pt; font-weight: 600; margin: 2px 0 1px 0; }
+  .sx .p-line { font-size: 7.6pt; color: #3d4556; }
+  .print-format .sx .acct td { padding: 0 6px 0.5px 0 !important; font-size: 7.6pt; }
+  .print-format .sx .acct td.k { color: #667085; width: 40%; }
+  .print-format .sx .acct td.v { font-weight: 600; }
+
+  /* ---------- items ---------- */
+  .print-format .sx table.items { margin-top: 12px; }
+  .print-format .sx .items th {
+    font-size: 6.6pt; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #ffffff;
+    background: #14213d; padding: 4px 6px !important; text-align: left;
+  }
+  .print-format .sx .items th.r { text-align: right; }
+  .print-format .sx .items th.c { text-align: center; }
+  .print-format .sx .items td { padding: 4px 6px !important; border-bottom: 1px solid #e4e7ec !important; }
+  .print-format .sx .items tr { page-break-inside: avoid; }
+  .sx .i-name { font-weight: 600; }
+  .sx .i-sub { font-size: 7pt; color: #667085; margin-top: 1px; }
+
+  /* ---------- summary ---------- */
+  .print-format .sx table.summary { margin-top: 9px; page-break-inside: avoid; }
+  .print-format .sx .summary td.left { width: 56%; padding: 0 18px 0 0 !important; }
+  .sx .words { font-size: 7.8pt; margin-top: 2px; }
+  .sx .notes { font-size: 7.4pt; color: #3d4556; margin-top: 6px; }
+  .print-format .sx .totals td { padding: 1.5px 6px !important; font-size: 8.2pt; white-space: nowrap; }
+  .print-format .sx .totals tr.grand td {
+    border-top: 1.5px solid #14213d !important; padding-top: 4px !important; font-size: 10pt; font-weight: 700; color: #14213d;
+  }
+
+  /* ---------- payment status ---------- */
+  .sx .pay { margin-top: 16px; }
+  .print-format .sx .pay-hdr td { vertical-align: bottom !important; padding: 0 0 3px 0 !important; border-bottom: 1.5px solid #14213d !important; }
+  .sx .pay-title { font-size: 8.4pt; font-weight: 700; color: #14213d; letter-spacing: 0.6px; text-transform: uppercase; }
+  .sx .pill { display: inline-block; padding: 1px 7px; font-size: 6.8pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border: 1px solid #14213d; color: #14213d; white-space: nowrap; }
+  .sx .pill.paid { border-color: #1a7f37; color: #1a7f37; }
+  .sx .pill.overdue { border-color: #b42318; color: #b42318; }
+  .sx .pay-note { font-size: 7.4pt; margin: 3px 0 4px 0; color: #3d4556; }
+  .sx .pay-note.paid { color: #1a7f37; }
+  .sx .pay-note.overdue { color: #b42318; }
+  .print-format .sx .ptab th { font-size: 6.6pt; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #667085; padding: 3px 6px !important; text-align: left; border-bottom: 1px solid #d0d5dd !important; }
+  .print-format .sx .ptab th.r { text-align: right; }
+  .print-format .sx .ptab td { padding: 3px 6px !important; font-size: 7.8pt; border-bottom: 1px solid #eef0f3 !important; }
+  .print-format .sx .ptab tr { page-break-inside: avoid; }
+  .sx .ptab tr.open td { color: #667085; }
+  .print-format .sx table.pbal { margin-top: 3px; page-break-inside: avoid; }
+  .print-format .sx .pbal td { padding: 1.5px 6px !important; font-size: 8.2pt; white-space: nowrap; }
+  .print-format .sx .pbal tr.due td.lbl, .print-format .sx .pbal tr.due td.amt { border-top: 1.5px solid #14213d !important; padding-top: 4px !important; font-size: 9.6pt; font-weight: 700; color: #14213d; }
+  .print-format .sx .pbal tr.due.overdue td.amt { color: #b42318; }
+  .print-format .sx .pbal tr.due.paid td.amt { color: #1a7f37; }
+
+  /* ---------- sign / footer ---------- */
+  .print-format .sx table.sign { margin-top: 30px; page-break-inside: avoid; }
+  .print-format .sx .sign td { width: 50%; }
+  .sx .sign-line { border-top: 1px solid #98a2b3; width: 62%; padding-top: 3px; font-size: 7pt; color: #667085; }
+  .sx .sign-line.right { margin-left: 38%; text-align: right; }
+  .sx.foot { border-top: 1px solid #d0d5dd; padding-top: 3px; margin-top: 3mm; }
+  .print-format .sx.foot td { font-size: 6.6pt; color: #98a2b3; padding: 0 !important; }
+
+  /* ---------- payment / journal layouts ---------- */
+  .print-format .sx table.amtbox { margin-top: 12px; background: #f4f6f9; }
+  .print-format .sx .amtbox td { padding: 9px 12px !important; vertical-align: middle !important; }
+  .sx .amt-label { font-size: 6.6pt; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: #667085; }
+  .sx .amt-value { font-size: 15pt; font-weight: 700; color: #14213d; }
+  .sx .amt-words { font-size: 7.8pt; color: #3d4556; }
+  .sx .sec { margin-top: 12px; font-size: 6.6pt; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: #667085; }
+  .print-format .sx .items tfoot td { padding: 4px 6px !important; font-weight: 700; color: #14213d; border-top: 1.5px solid #14213d !important; }

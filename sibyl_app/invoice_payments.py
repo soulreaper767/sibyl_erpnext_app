@@ -11,11 +11,18 @@ from frappe import _
 from frappe.utils import date_diff, flt, formatdate, getdate, nowdate
 
 
+INVOICE_DOCTYPES = ("Sales Invoice", "POS Invoice", "Purchase Invoice")
+
+
 @frappe.whitelist()
-def get_invoice_payment_status(invoice, as_on=None):
-	si = frappe.get_doc("Sales Invoice", invoice) if isinstance(invoice, str) else invoice
+def get_invoice_payment_status(invoice, as_on=None, doctype="Sales Invoice"):
+	"""Works for Sales / POS / Purchase Invoices. Ledger signs differ between receivable and
+	payable accounts, so everything is normalised to the invoice amount being positive."""
+	si = frappe.get_doc(doctype, invoice) if isinstance(invoice, str) else invoice
 	if isinstance(invoice, str):
 		si.check_permission("read")
+	if si.doctype not in INVOICE_DOCTYPES:
+		frappe.throw(_("Payment status is available for invoices only."))
 	as_on = getdate(as_on or nowdate())
 	precision = si.precision("outstanding_amount")
 
@@ -24,7 +31,7 @@ def get_invoice_payment_status(invoice, as_on=None):
 		frappe.qb.from_(ple)
 		.select(ple.voucher_type, ple.voucher_no, ple.posting_date, ple.amount, ple.creation)
 		.where(
-			(ple.against_voucher_type == "Sales Invoice")
+			(ple.against_voucher_type == si.doctype)
 			& (ple.against_voucher_no == si.name)
 			& (ple.delinked == 0)
 		)
@@ -33,7 +40,9 @@ def get_invoice_payment_status(invoice, as_on=None):
 		.run(as_dict=True)
 	)
 
-	invoice_amount = flt(sum(e.amount for e in entries if e.voucher_no == si.name), precision)
+	signed_total = sum(e.amount for e in entries if e.voucher_no == si.name)
+	sign = -1 if signed_total < 0 else 1
+	invoice_amount = flt(signed_total * sign, precision)
 	if not entries:  # draft / not yet posted
 		invoice_amount = flt(si.rounded_total or si.grand_total, precision)
 
@@ -41,7 +50,7 @@ def get_invoice_payment_status(invoice, as_on=None):
 	for e in entries:
 		if e.voucher_no == si.name or getdate(e.posting_date) > as_on:
 			continue
-		received = flt(-e.amount, precision)
+		received = flt(-e.amount * sign, precision)
 		balance = flt(balance - received, precision)
 		rows.append(
 			frappe._dict(
