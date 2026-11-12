@@ -345,7 +345,7 @@ def _company(spec):
 				"is_stock_item": stock, "include_item_in_manufacturing": 1, "valuation_rate": buy or sell * 0.6 or 1,
 				"is_sales_item": 1 if sell else 0, "is_purchase_item": 1 if buy else 0,
 				"item_defaults": [{"company": name, "default_warehouse": wh}],
-			}).insert(ignore_permissions=True)
+			}).insert(ignore_permissions=True, set_name=code)  # keep the code as the name even when items use a naming series
 		for price_list, rate in ((SELLING, sell), (BUYING, buy)):
 			if rate and not frappe.db.exists("Item Price", {"item_code": code, "price_list": price_list}):
 				frappe.get_doc({"doctype": "Item Price", "item_code": code, "price_list": price_list, "price_list_rate": rate}).insert(ignore_permissions=True)
