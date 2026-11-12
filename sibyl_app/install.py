@@ -26,6 +26,19 @@ def setup():
 		frappe.db.commit()
 	rename_existing_documents_once()
 	setup_website_forms()
+	setup_demo_basics()
+
+
+def setup_demo_basics():
+	"""Public demo: role + settings only. The demo companies/data are built from Sibyl Demo Settings (never on migrate)."""
+	from sibyl_app.demo import setup_basics
+
+	try:
+		setup_basics()
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Sibyl App: demo setup failed")
 
 
 def setup_website_forms():

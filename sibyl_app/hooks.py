@@ -45,7 +45,21 @@ doc_events = {
 		"autoname": "sibyl_app.naming.autoname",
 		"on_trash": "sibyl_app.naming.on_trash",
 	},
+	# public demo (sibyl_app/demo.py): demo emails never leave, the demo account can't be changed
+	"Email Queue": {"before_insert": "sibyl_app.demo.block_email"},
+	"User": {"before_validate": "sibyl_app.demo.protect_demo_user"},
 }
+
+# Public demo fence: only acts for users with the "Sibyl Demo" role (returns "" / True for everyone else)
+permission_query_conditions = {"*": "sibyl_app.demo.query_conditions"}
+has_permission = {"*": "sibyl_app.demo.has_permission"}
+
+scheduler_events = {
+	"hourly": ["sibyl_app.demo.hourly"],
+}
+
+# /login?demo=1 shows the demo credentials with a "Fill in" button
+web_include_js = "/assets/sibyl_app/js/demo_login.js"
 
 # Apps
 # ------------------

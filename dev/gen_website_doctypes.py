@@ -109,10 +109,32 @@ DOCTYPES = {
 		permissions=[
 			perm("System Manager", create=0),
 			perm("Sales Manager", create=0, delete=0),
-			perm("Sales User", create=0, delete=0, write=0),
 			perm("HR Manager", create=0, delete=0, write=0),
-			perm("Support Team", create=0, delete=0, write=0),
 		],
+	),
+	"Sibyl Demo Settings": dict(
+		issingle=1,
+		description="The public demo on this system: who visitors log in as, and the demo companies they see.",
+		fields=[
+			S("demo_section", "Public Demo"),
+			F("enabled", "Check", "Demo login enabled", default="1",
+			  description="Off: the demo user is disabled and the website's Try Demo page stops showing the login."),
+			F("demo_user", "Data", "Demo login (email)", default="demo@sibyl.pk", read_only=1),
+			F("demo_password", "Data", "Demo password", default="SibylDemo#2026",
+			  description="Shown publicly on the website and the login page. Reset to this every hour, so visitors can't lock each other out."),
+			C("column_break_demo"),
+			F("build_demo", "Button", "Build / refresh demo data"),
+			F("last_built", "Datetime", "Last built", read_only=1),
+			F("build_status", "Small Text", "Build status", read_only=1),
+			S("fence_section", "What the demo user can see"),
+			F("fence_note", "HTML", "Fence",
+			  options="<p class='text-muted small'>Only the demo companies and their demo customers, suppliers, items and price lists "
+					  "(User Permissions), and only contacts, addresses, emails, files and comments that belong to them. Website "
+					  "submissions, applicants, newsletters and settings stay hidden. Nothing the demo user does sends email: "
+					  "every email from a demo company or the demo user is cancelled before it leaves. Deleting and cancelling "
+					  "are off for the demo user.</p>"),
+		],
+		permissions=[perm("System Manager", create=1, delete=0)],
 	),
 }
 

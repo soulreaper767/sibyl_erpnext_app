@@ -132,7 +132,7 @@
    "label": "Website",
    "hidden": 0,
    "is_query_report": 0,
-   "link_count": 7,
+   "link_count": 8,
    "onboard": 0
   },
   {
@@ -204,9 +204,19 @@
    "is_query_report": 0,
    "link_count": 0,
    "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "Public Demo Settings",
+   "link_type": "DocType",
+   "link_to": "Sibyl Demo Settings",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0
   }
  ],
- "modified": "2026-11-11 12:00:00.000000",
+ "modified": "2026-11-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Sibyl App",
  "name": "Sibyl App",

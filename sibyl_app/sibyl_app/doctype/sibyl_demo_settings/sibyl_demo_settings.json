@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "creation": "2026-11-11 12:00:00.000000",
+ "description": "The public demo on this system: who visitors log in as, and the demo companies they see.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "demo_section",
+  "enabled",
+  "demo_user",
+  "demo_password",
+  "column_break_demo",
+  "build_demo",
+  "last_built",
+  "build_status",
+  "fence_section",
+  "fence_note"
+ ],
+ "fields": [
+  {
+   "fieldname": "demo_section",
+   "fieldtype": "Section Break",
+   "label": "Public Demo"
+  },
+  {
+   "default": "1",
+   "description": "Off: the demo user is disabled and the website's Try Demo page stops showing the login.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Demo login enabled"
+  },
+  {
+   "default": "demo@sibyl.pk",
+   "fieldname": "demo_user",
+   "fieldtype": "Data",
+   "label": "Demo login (email)",
+   "read_only": 1
+  },
+  {
+   "default": "SibylDemo#2026",
+   "description": "Shown publicly on the website and the login page. Reset to this every hour, so visitors can't lock each other out.",
+   "fieldname": "demo_password",
+   "fieldtype": "Data",
+   "label": "Demo password"
+  },
+  {
+   "fieldname": "column_break_demo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "build_demo",
+   "fieldtype": "Button",
+   "label": "Build / refresh demo data"
+  },
+  {
+   "fieldname": "last_built",
+   "fieldtype": "Datetime",
+   "label": "Last built",
+   "read_only": 1
+  },
+  {
+   "fieldname": "build_status",
+   "fieldtype": "Small Text",
+   "label": "Build status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fence_section",
+   "fieldtype": "Section Break",
+   "label": "What the demo user can see"
+  },
+  {
+   "fieldname": "fence_note",
+   "fieldtype": "HTML",
+   "label": "Fence",
+   "options": "<p class='text-muted small'>Only the demo companies and their demo customers, suppliers, items and price lists (User Permissions), and only contacts, addresses, emails, files and comments that belong to them. Website submissions, applicants, newsletters and settings stay hidden. Nothing the demo user does sends email: every email from a demo company or the demo user is cancelled before it leaves. Deleting and cancelling are off for the demo user.</p>"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-11 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sibyl App",
+ "name": "Sibyl Demo Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "states": [],
+ "track_changes": 0
+}
