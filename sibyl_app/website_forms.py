@@ -95,7 +95,7 @@ def _handle(settings, route, form, kind, fields, files, meta):
 		"phone": _clip(fields.get("phone"), 40), "company_name": _clip(fields.get("company"), 140),
 		"topic": _clip(fields.get("topic") or fields.get("position") or fields.get("product"), 140),
 		"message": _clip(fields.get("message"), MAX_TEXT),
-		"ip_address": _clip(meta.get("ip"), 60), "page_url": _clip(meta.get("page"), 500),
+		"ip_address": _clip(meta.get("ip"), 60), "page_url": _clip(meta.get("page"), 140),
 		"user_agent": _clip(meta.get("user_agent"), 500),
 		"payload": json.dumps({"form": form, "kind": kind, "fields": fields,
 							   "files": [{"name": f.get("name"), "size": len(f.get("content") or "")} for f in files]},
@@ -173,7 +173,7 @@ def _lead(settings, label, fields, files, log):
 	lead.update({
 		"sibyl_web_form": label, "sibyl_web_topic": _clip(fields.get("topic"), 140),
 		"sibyl_web_product": _clip(fields.get("product"), 140), "sibyl_web_budget": _clip(fields.get("budget"), 140),
-		"sibyl_web_timeline": _clip(fields.get("timeline"), 140), "sibyl_web_page": _clip(fields.get("page"), 500),
+		"sibyl_web_timeline": _clip(fields.get("timeline"), 140), "sibyl_web_page": _clip(fields.get("page"), 140),
 		"sibyl_web_submission": log.name,
 	})
 	lead.flags.ignore_permissions = True
@@ -214,12 +214,16 @@ def _applicant(settings, label, fields, files, log):
 	if position.lower() in ("", "general application", "general inquiry", "careers"):
 		position = ""
 	opening = _job_opening(position) if position else None
+	links = (fields.get("linkedin") or fields.get("resume_note") or "").strip()
+	letter = _clip(fields.get("message"), MAX_TEXT)
+	if links and len(_url(links)) != len(links):  # several links / too long for the 140-character link field
+		letter = (letter + "\n\nLinks: " + links).strip()[:MAX_TEXT + 600]
 	app = frappe.new_doc("Job Applicant")
 	app.update({
 		"applicant_name": _clip(fields.get("name"), 140), "email_id": email, "phone_number": _clip(fields.get("phone"), 40),
 		"job_title": opening, "designation": frappe.db.get_value("Job Opening", opening, "designation") if opening else None,
-		"status": "Open", "cover_letter": _clip(fields.get("message"), MAX_TEXT),
-		"resume_link": _url(fields.get("linkedin") or fields.get("resume_note")),
+		"status": "Open", "cover_letter": letter,
+		"resume_link": _url(links),
 		"sibyl_web_position": position or _("General application"),
 		"sibyl_web_experience": _clip(fields.get("experience"), 140),
 		"sibyl_web_location": _clip(fields.get("company") or fields.get("location"), 140),
@@ -492,8 +496,9 @@ def _clip(value, n):
 
 
 def _url(value):
-	value = (value or "").strip()
-	return value[:500] if re.match(r"^https?://", value, re.I) else ""
+	"""The first http(s) link, if it fits ERPNext's 140-character link fields (else "")."""
+	first = (value or "").strip().split()[0] if (value or "").strip() else ""
+	return first if re.match(r"^https?://", first, re.I) and len(first) <= 140 else ""
 
 
 def _amount(value):
