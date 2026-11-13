@@ -27,6 +27,19 @@ def setup():
 	rename_existing_documents_once()
 	setup_website_forms()
 	setup_demo_basics()
+	scope_users_to_default_company()
+
+
+def scope_users_to_default_company():
+	"""Real users -> the default company (see company_scope.py)."""
+	from sibyl_app.company_scope import scope_all_users
+
+	try:
+		scope_all_users()
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Sibyl App: tying users to the default company failed")
 
 
 def setup_demo_basics():

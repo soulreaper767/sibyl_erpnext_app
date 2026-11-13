@@ -21,6 +21,7 @@ jinja = {
 	"methods": [
 		"sibyl_app.invoice_payments.get_invoice_payment_status",
 		"sibyl_app.print_utils.sibyl_print_context",
+		"sibyl_app.print_utils.sibyl_company_brand",
 	],
 }
 
@@ -47,7 +48,11 @@ doc_events = {
 	},
 	# public demo (sibyl_app/demo.py): demo emails never leave, the demo account can't be changed
 	"Email Queue": {"before_insert": "sibyl_app.demo.block_email"},
-	"User": {"before_validate": "sibyl_app.demo.protect_demo_user"},
+	"User": {
+		"before_validate": "sibyl_app.demo.protect_demo_user",
+		# every real user works in the default company - demo companies never mix into their lists
+		"on_update": "sibyl_app.company_scope.on_user_update",
+	},
 }
 
 # Public demo fence: only acts for users with the "Sibyl Demo" role (returns "" / True for everyone else)

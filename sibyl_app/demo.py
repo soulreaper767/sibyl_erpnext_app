@@ -193,6 +193,8 @@ def hourly():
 	from frappe.utils.password import update_password
 
 	frappe.db.set_value("User", DEMO_USER, "enabled", 1 if s.enabled else 0, update_modified=False)
+	for up in frappe.get_all("User Permission", filters={"user": DEMO_USER, "allow": "Company", "for_value": ["not in", COMPANIES]}, pluck="name"):
+		frappe.delete_doc("User Permission", up, ignore_permissions=True, force=True)  # belt and braces, hourly
 	if s.enabled:
 		update_password(DEMO_USER, s.demo_password or DEFAULT_PASSWORD)
 	frappe.db.commit()
@@ -336,6 +338,7 @@ def _company(spec):
 		c.flags.ignore_permissions = True
 		c.insert()
 	frappe.db.set_value("Company", name, "default_holiday_list", HOLIDAYS)
+	_brand(spec)
 	territory = "Pakistan" if frappe.db.exists("Territory", "Pakistan") else frappe.db.get_value("Territory", {"is_group": 0})
 	wh = _wh(spec, "Stores")
 	for code, item_name, uom, stock, buy, sell in spec["items"]:
@@ -361,7 +364,44 @@ def _company(spec):
 			_contact(sup, "Supplier", sup, i)
 
 
-FIRST = ["Ahmed", "Sana", "Bilal", "Ayesha", "Usman", "Fatima", "Hamza", "Zainab", "Imran", "Hira"]
+BRANDS = {
+	"DTRD": ("DT", "Demo Trading", "#0f766e", "Plot 14, Badami Bagh Market", "Lahore", "Punjab", "54000", "+92 42 3700 1401"),
+	"DTXM": ("TM", "Demo Textile Mills", "#7c2d12", "Sargodha Road, Industrial Estate", "Faisalabad", "Punjab", "38000", "+92 41 8700 2202"),
+	"DITS": ("IT", "Demo IT Services", "#1d4ed8", "Office 9, Arfa Software Technology Park", "Lahore", "Punjab", "54000", "+92 42 3500 3303"),
+	"DMRT": ("DM", "Demo Mart", "#b45309", "Shop 3, Tariq Road", "Karachi", "Sindh", "75400", "+92 21 3400 4404"),
+}
+
+
+def _logo_svg(initials, label, colour):
+	return ('<svg xmlns="http://www.w3.org/2000/svg" width="360" height="80" viewBox="0 0 360 80">'
+			f'<rect x="2" y="2" width="76" height="76" rx="16" fill="{colour}"/>'
+			f'<text x="40" y="52" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="32" font-weight="700" fill="#ffffff">{initials}</text>'
+			f'<text x="94" y="50" font-family="DejaVu Sans, Arial, sans-serif" font-size="26" font-weight="700" fill="#14213d">{label}</text>'
+			'</svg>')
+
+
+def _brand(spec):
+	"""Each demo company prints as itself: its own logo, address and a clearly-demo NTN."""
+	company = spec["company"]
+	initials, label, colour, line1, city, state, pin, phone = BRANDS[spec["abbr"]]
+	if not frappe.db.get_value("Company", company, "company_logo"):
+		f = frappe.get_doc({"doctype": "File", "file_name": "demo-logo-%s.svg" % spec["abbr"].lower(), "is_private": 0,
+							"content": _logo_svg(initials, label, colour), "attached_to_doctype": "Company",
+							"attached_to_name": company, "attached_to_field": "company_logo"})
+		f.flags.ignore_permissions = True
+		f.insert()
+		frappe.db.set_value("Company", company, "company_logo", f.file_url)
+	if not frappe.db.get_value("Company", company, "tax_id"):
+		frappe.db.set_value("Company", company, "tax_id", "DEMO-%s" % spec["abbr"])
+	if not frappe.db.get_value("Dynamic Link", {"link_doctype": "Company", "link_name": company, "parenttype": "Address"}):
+		a = frappe.get_doc({"doctype": "Address", "address_title": company, "address_type": "Office", "address_line1": line1,
+							"city": city, "state": state, "pincode": pin, "country": frappe.db.get_default("country") or "Pakistan",
+							"phone": phone, "is_your_company_address": 1, "links": [{"link_doctype": "Company", "link_name": company}]})
+		a.flags.ignore_permissions = True
+		a.insert()
+
+
+FIRST = ["Ahmed","Sana", "Bilal", "Ayesha", "Usman", "Fatima", "Hamza", "Zainab", "Imran", "Hira"]
 LAST = ["Khan", "Malik", "Qureshi", "Siddiqui", "Butt", "Raza", "Sheikh", "Chaudhry"]
 
 
@@ -628,6 +668,9 @@ def _demo_user():
 	wanted = [("Company", c, i == 0) for i, c in enumerate(COMPANIES)] + [
 		("Customer Group", CUSTOMER_GROUP, True), ("Supplier Group", SUPPLIER_GROUP, True), ("Item Group", ITEM_GROUP, True),
 		("Price List", SELLING, False), ("Price List", BUYING, False)]
+	# never any real company for the demo login, whatever added it
+	for up in frappe.get_all("User Permission", filters={"user": DEMO_USER, "allow": "Company", "for_value": ["not in", COMPANIES]}, pluck="name"):
+		frappe.delete_doc("User Permission", up, ignore_permissions=True, force=True)
 	for allow, value, default in wanted:
 		if not frappe.db.exists("User Permission", {"user": DEMO_USER, "allow": allow, "for_value": value}):
 			frappe.get_doc({"doctype": "User Permission", "user": DEMO_USER, "allow": allow, "for_value": value,

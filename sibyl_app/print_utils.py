@@ -34,10 +34,28 @@ SIBYL_DOCTYPES = [
 ]
 
 
+def company_logo(company):
+	"""The company's own logo (Company > Logo); the site / Sibyl logo only when the company has none."""
+	logo = frappe.db.get_value("Company", company, "company_logo") if company else None
+	logo = logo or frappe.db.get_single_value("Website Settings", "app_logo") or LOGO
+	return frappe.utils.get_url(logo) if logo.startswith("/") else logo
+
+
+def sibyl_company_brand(doc=None):
+	"""Jinja (letter head / footer): logo, name, address and NTN of the company the printed document belongs to."""
+	company = (doc or {}).get("company") if doc else None
+	if not company or not frappe.db.exists("Company", company):
+		company = frappe.db.get_default("company")
+	brand = frappe._dict(company=company or "", logo=company_logo(company))
+	brand.update(_company(company) if company else {"company_address": "", "company_extra": "", "company_tax_id": None})
+	return brand
+
+
 def sibyl_print_context(doc):
+	company = doc.get("company") or frappe.db.get_default("company")
 	ctx = frappe._dict(
-		logo=frappe.db.get_single_value("Website Settings", "app_logo") or LOGO,
-		company=doc.get("company") or frappe.db.get_default("company"),
+		logo=company_logo(company),
+		company=company,
 		layout="items",  # items | payment | journal
 		show_prices=True,
 		meta=[],

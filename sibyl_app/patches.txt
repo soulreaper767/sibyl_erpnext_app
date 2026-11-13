@@ -9,3 +9,4 @@ sibyl_app.patches.sibyl_sales_invoice_default_print_format
 sibyl_app.patches.sibyl_email_branding
 sibyl_app.patches.sibyl_default_print_formats
 sibyl_app.patches.sibyl_print_style_letterhead
+sibyl_app.patches.sibyl_company_letterhead
