@@ -112,12 +112,16 @@ def _handle(settings, route, form, kind, fields, files, meta):
 		ref_dt, ref_name, message = HANDLERS[route[1]](settings, route[0], fields, files, log)
 		log.db_set({"status": "Processed", "reference_doctype": ref_dt, "reference_name": ref_name}, update_modified=False)
 		frappe.db.commit()
-	except Rejected as e:
-		frappe.db.rollback()  # back to the committed log: nothing half-made stays
+	except (Rejected, frappe.ValidationError) as e:
+		# something the visitor can fix (too long, missing, invalid, closed position...): tell them what, keep nothing half-made
+		frappe.db.rollback()  # back to the committed log
+		frappe.clear_messages()
+		visitor_msg = str(e) if isinstance(e, Rejected) else _visitor_message(e)
 		log.reload()
-		log.db_set({"status": "Rejected", "error": str(e)}, update_modified=False)
+		log.db_set({"status": "Rejected", "error": visitor_msg + ("" if isinstance(e, Rejected) else "\n\n" + frappe.get_traceback()[-4000:])},
+				   update_modified=False)
 		frappe.db.commit()
-		return {"ok": True, "rejected": True, "message": str(e)}
+		return {"ok": True, "rejected": True, "message": visitor_msg}
 	except Exception:
 		frappe.db.rollback()
 		log.reload()
@@ -133,7 +137,53 @@ def _handle(settings, route, form, kind, fields, files, meta):
 
 
 # --------------------------------------------------------------------------- checks
+# what each website field is called on the form, and the most ERPNext can store
+LIMITS = {
+	"name": ("Full Name", 140), "email": ("Email Address", 140), "phone": ("Phone Number", 40),
+	"company": ("Company / City", 140), "location": ("City / Location", 140), "topic": ("Topic", 140),
+	"position": ("Position", 140), "product": ("Product of Interest", 140), "budget": ("Budget", 140),
+	"timeline": ("Timeline", 140), "experience": ("Years of Experience", 140), "salary": ("Expected Salary", 140),
+	"salary_expectation": ("Expected Salary", 140), "linkedin": ("LinkedIn / Portfolio URL", 1000),
+	"resume_note": ("LinkedIn / Portfolio URL", 1000), "message": ("Message", MAX_TEXT),
+}
+# ERPNext field labels -> what the visitor sees on the website form
+SITE_LABELS = {"Link": "LinkedIn / Portfolio URL", "Applicant Name": "Full Name", "Phone Number": "Phone Number",
+			   "Email Address": "Email Address", "Mobile No": "Phone Number", "Organization Name": "Company",
+			   "Company Name": "Company", "Subject": "Message subject", "First Name": "Full Name", "Last Name": "Full Name"}
+
+
+def _too_long(label, n, limit):
+	return _("Your {0} is too long ({1} characters, the most we can take is {2}). Please shorten it and send the form again.").format(
+		label, n, limit)
+
+
+def _visitor_message(e):
+	"""Turn an ERPNext validation error into a plain sentence the visitor can act on."""
+	text = frappe.utils.strip_html(str(e) or "").strip()
+	label = re.search(r"<strong>(.*?)</strong>", str(e))
+	label = SITE_LABELS.get(label.group(1), label.group(1)) if label else None
+	if isinstance(e, frappe.CharacterLengthExceededError) or "will get truncated" in text:
+		limit = re.search(r"allowed is (\d+)", text)
+		return _("Your {0} is too long (the most we can take is {1} characters). Please shorten it and send the form again.").format(
+			label or _("entry"), limit.group(1) if limit else 140)
+	if isinstance(e, frappe.MandatoryError):
+		return _("Please fill in {0} and send the form again.").format(label or _("all required fields"))
+	if isinstance(e, frappe.InvalidEmailAddressError):
+		return _("Please enter a valid email address and send the form again.")
+	if "closed Job Opening" in text:
+		return _("Sorry, this position is no longer open. You can still send us a general application from the Careers page.")
+	if "already applied" in text.lower():
+		return _("You have already applied for this position - thank you. We will be in touch; there is no need to apply again.")
+	text = re.sub(r"^[\w ]+ [^:]{1,80}: ", "", text)  # drop the "Job Applicant x@y.z: " prefix
+	return _("We couldn't accept your form: {0} Please correct it and send again, or email us if this keeps happening.").format(
+		text.rstrip(".") + "." if text else "")
+
+
 def _check_input(settings, fields, meta, route):
+	for key, (label, limit) in LIMITS.items():
+		value = (fields.get(key) or "").strip()
+		if len(value) > limit:
+			raise Rejected(_too_long(label, len(value), limit))
 	name, email = (fields.get("name") or "").strip(), (fields.get("email") or "").strip()
 	if route[1] != "Email Group Member" and not name:
 		raise Rejected(_("Please enter your name."))
