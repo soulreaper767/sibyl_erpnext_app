@@ -27,6 +27,7 @@ jinja = {
 
 doctype_js = {
 	"Sales Invoice": "public/js/sales_invoice.js",
+	"Customer": "public/js/customer.js",
 }
 
 after_install = "sibyl_app.install.after_install"
@@ -48,6 +49,14 @@ doc_events = {
 	},
 	# public demo (sibyl_app/demo.py): demo emails never leave, the demo account can't be changed
 	"Email Queue": {"before_insert": "sibyl_app.demo.block_email"},
+	# customer support portal (sibyl_app/support_portal.py)
+	"Issue": {
+		"before_insert": "sibyl_app.support_portal.issue_before_insert",
+		"after_insert": "sibyl_app.support_portal.issue_after_insert",
+		"on_update": "sibyl_app.support_portal.issue_on_update",
+	},
+	"Comment": {"after_insert": "sibyl_app.support_portal.comment_after_insert"},
+	"Communication": {"after_insert": "sibyl_app.support_portal.communication_after_insert"},
 	"User": {
 		"before_validate": "sibyl_app.demo.protect_demo_user",
 		# every real user works in the default company - demo companies never mix into their lists

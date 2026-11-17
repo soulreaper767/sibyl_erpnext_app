@@ -26,6 +26,7 @@ def setup():
 		frappe.db.commit()
 	rename_existing_documents_once()
 	setup_website_forms()
+	setup_support_portal()
 	setup_demo_basics()
 	scope_users_to_default_company()
 
@@ -52,6 +53,19 @@ def setup_demo_basics():
 	except Exception:
 		frappe.db.rollback()
 		frappe.log_error(title="Sibyl App: demo setup failed")
+
+
+def setup_support_portal():
+	"""Customer portal tickets: email templates, issue types, ticket form (see support_portal.py)."""
+	from sibyl_app.support_portal import setup as support_setup
+
+	try:
+		support_setup()
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Sibyl App: support portal setup failed")
+		print("Sibyl App: support portal setup failed - see Error Log; will retry on next migrate")
 
 
 def setup_website_forms():
